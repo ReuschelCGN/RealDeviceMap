@@ -301,6 +301,16 @@ class AutoInstanceController: InstanceControllerProto {
             }
             stopsLock.unlock()
         }
+        case .findyPokemon:
+        {
+            initFindyCoords()
+            CircleInstanceController.findyCache.set(id: self.name, value: 1)
+        }
+        case .jumpyPokemon:
+        {
+            initJumpyCoords()
+             CircleInstanceController.jumpyCache.set(id: self.name, value: 1)
+        }
     }
 
     func getTask(mysql: MySQL, uuid: String, username: String?, account: Account?, timestamp: UInt64) -> [String: Any]
@@ -370,7 +380,7 @@ class AutoInstanceController: InstanceControllerProto {
             return task
         }
         case .findyPokemon
-{
+        {
             // get route like for findy, specify fence and use tth = null
             // with each gettask, just increment to next point in list
             // requery the route every ???? min, set with cache above
@@ -1057,7 +1067,7 @@ class AutoInstanceController: InstanceControllerProto {
         Log.debug(message: "initJumpyCoords() - Starting")
         guard let mysql = DBController.global.mysql else 
         {
-            Log.error(message: "[AutoInstanceController] initJumpyCoords() - Failed to connect to database.")
+            Log.error(message: "[AutoInstanceController] initFindyCoords() - Failed to connect to database.")
             return
         }
 
@@ -1096,7 +1106,7 @@ class AutoInstanceController: InstanceControllerProto {
 
             guard mysqlStmt.execute() else
             {
-                Log.error(message: "[AutoInstanceController] initJumpyCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
+                Log.error(message: "[AutoInstanceController] initFindyCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
                 throw DBController.DBError()
             }
 
@@ -1171,7 +1181,7 @@ class AutoInstanceController: InstanceControllerProto {
         loc = curLocation + 1
         if (loc > cntCoords )  // past the end of normal coords
         {
-            Log.debug(message: "determineNextJumpyLocation() - reached end of data, going back to zero")
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() - reached end of data, going back to zero")
             
             lastLastCompletedTime = lastCompletedTime
             lastCompletedTime = Date()
@@ -1187,7 +1197,7 @@ class AutoInstanceController: InstanceControllerProto {
         var spawn_sec:UInt16 = nextCoord.spawn_sec
 
         var (minTime, maxTime) = offsetsForSpawnTimer(time: spawn_sec)
-        Log.debug(message: "determineNextJumpyLocation() - minTime=\(minTime) & curTime=\(curTime) & maxTime=\(maxTime)")
+        Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() - minTime=\(minTime) & curTime=\(curTime) & maxTime=\(maxTime)")
 
         let topOfHour = (minTime < 0)
         if (topOfHour)
@@ -1201,19 +1211,19 @@ class AutoInstanceController: InstanceControllerProto {
         if ((curTime >= minTime) && (curTime <= maxTime))
         {
             // good to jump as between to key points for current time
-            Log.debug(message: "determineNextJumpyLocation() a1 - curtime between min and max, moving standard 1 forward")
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a1 - curtime between min and max, moving standard 1 forward")
 
             // test if we are getting too close to the mintime
             if  (Double(curTime) - Double(minTime) < 30) 
             {
-                Log.debug(message: "determineNextJumpyLocation() a2 - sleeping 10sec as too close to minTime, in normal time")
+                Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a2 - sleeping 10sec as too close to minTime, in normal time")
                 Threading.sleep(seconds: 10)
             }
         }
         else if (curTime < minTime)
         {
             // spawn is past time to visit, need to find a good one to jump to
-            Log.debug(message: "determineNextJumpyLocation() b1 - curTime \(curTime) > maxTime, iterate")
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b1 - curTime \(curTime) > maxTime, iterate")
 
             var found: Bool = false
             let start = loc
@@ -1226,7 +1236,7 @@ class AutoInstanceController: InstanceControllerProto {
 
                 if  (curTime >= mnTime) && (curTime <= mnTime + 120)
                 {
-                    Log.debug(message: "determineNextJumpyLocation() b2 - mnTime=\(mnTime) & curTime=\(curTime) & & mxTime=\(mxTime)")
+                    Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b2 - mnTime=\(mnTime) & curTime=\(curTime) & & mxTime=\(mxTime)")
                     found = true
                     loc = idx
                     break
@@ -1244,8 +1254,8 @@ class AutoInstanceController: InstanceControllerProto {
 
                     if  (curTime >= mnTime + 30) && (curTime < mnTime + 120)
                     {
-                        Log.debug(message: "determineNextJumpyLocation() b3 - iterate backwards solution=\(found)")
-                        Log.debug(message: "determineNextJumpyLocation() b4 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
+                        Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b3 - iterate backwards solution=\(found)")
+                        Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b4 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
                         found = true
                         loc = idx
                         break
@@ -1255,7 +1265,7 @@ class AutoInstanceController: InstanceControllerProto {
         }
         else if (curTime < minTime ) && (!firstRun)
         {
-            Log.debug(message: "determineNextJumpyLocation() c1 - sleeping 20sec")
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() c1 - sleeping 20sec")
             Threading.sleep(seconds: 20)
 
             pauseJumping = true
@@ -1264,7 +1274,7 @@ class AutoInstanceController: InstanceControllerProto {
         else if (curTime > maxTime)
         {
             // spawn is past time to visit, need to find a good one to jump to
-            Log.debug(message: "determineNextJumpyLocation() d1 - curTime=\(curTime) > maxTime=\(maxTime), iterate")
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d1 - curTime=\(curTime) > maxTime=\(maxTime), iterate")
 
             var found: Bool = false
             let start = loc
@@ -1277,8 +1287,8 @@ class AutoInstanceController: InstanceControllerProto {
 
                 if  (curTime >= mnTime+30) && (curTime <= mnTime + 120)
                 {
-                    Log.debug(message: "determineNextJumpyLocation() d2 - iterate forward solution=\(found)")
-                    Log.debug(message: "determineNextJumpyLocation() d3 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
+                    Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d2 - iterate forward solution=\(found)")
+                    Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d3 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
                     found = true
                     loc = idx
                     break
@@ -1296,8 +1306,8 @@ class AutoInstanceController: InstanceControllerProto {
 
                     if   (curTime >= mnTime+30) && (curTime <= mnTime + 120)
                     {
-                        Log.debug(message: "determineNextJumpyLocation() d4 - iterate backwards solution=\(found)")
-                        Log.debug(message: "determineNextJumpyLocation() d5 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
+                        Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d4 - iterate backwards solution=\(found)")
+                        Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d5 -  mnTime=\(mnTime) & curTime=\(curTime) &mxTime=\(mxTime)")
                         found = true
                         loc = idx
                         break
@@ -1307,7 +1317,7 @@ class AutoInstanceController: InstanceControllerProto {
         }
         else
         {
-            Log.debug(message: "determineNextJumpyLocation() e1 - criteria fail with curTime=\(curTime) & curLocation=\(curLocation)" +
+            Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() e1 - criteria fail with curTime=\(curTime) & curLocation=\(curLocation)" +
                       "& despawn=\(spawn_sec)")
             // go back to zero and iterate somewhere useful
             loc=0
@@ -1326,24 +1336,6 @@ class AutoInstanceController: InstanceControllerProto {
         }
         
         return loc
-    }
-
-    private func createMultiPolygon(areaArray: [[Coord]]) -> MultiPolygon
-    {
-        var geofences = [[[LocationCoordinate2D]]]()
-        for coord in areaArray
-        {
-            var geofence = [LocationCoordinate2D]()
-            
-            for crd in coord
-            {
-                geofence.append(LocationCoordinate2D.init(latitude: crd.lat, longitude: crd.lon))
-            }
-            
-            geofences.append([geofence])
-        }
-        
-        return MultiPolygon.init(geofences)
     }
 
     private func inPolygon(lat: Double, lon: Double, multiPolygon: MultiPolygon) -> Bool
