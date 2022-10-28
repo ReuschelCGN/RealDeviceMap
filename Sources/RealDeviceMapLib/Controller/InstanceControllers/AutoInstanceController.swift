@@ -308,9 +308,8 @@ class AutoInstanceController: InstanceControllerProto {
         switch type
         {
         case .jumpyPokemon
-{ 
+        { 
             // don't give a crap about laptime, as by definition it is 1hr
-
             lock.unlock()
 
             let hit = CircleInstanceController.jumpyCache.get(id: self.name) ?? 0
@@ -323,7 +322,7 @@ class AutoInstanceController: InstanceControllerProto {
             Log.debug(message: "getTask() - jumpy started for \(self.name)")
 
             let (_,min,sec) = secondsToHoursMinutesSeconds()
-            let curSecInHour = min*60+sec
+            let curSecInHour = min*60 + sec
             jumpyLock.lock()
             
             // increment location
@@ -333,10 +332,6 @@ class AutoInstanceController: InstanceControllerProto {
             if keyExists
             {
                 loc = CircleInstanceController.currentDevicesMaxLocation[self.name]!
-            }
-            else
-            {
-                loc = 0
             }
 
             let newLoc = determineNextJumpyLocation(CurTime: curSecInHour, curLocation: loc)
@@ -886,6 +881,28 @@ class AutoInstanceController: InstanceControllerProto {
                 }
             }
         }
+        case .jumpyPokemon:
+        {
+            let cnt = self.jumpyCoords.count/2
+
+            if formatted
+            {
+                return "Coord Count: \(cnt)"
+            } else {
+                return ["coord_count": cnt]
+            }
+        }
+        case .findyPokemon:
+        {
+            if formatted
+            {
+                return "Coord Count: \(self.findyCoords.count)"
+            }
+            else
+            {
+                return ["coord_count": self.findyCoords.count]
+            }
+        }
     }
 
     func reload() {
@@ -948,32 +965,23 @@ class AutoInstanceController: InstanceControllerProto {
             jumpyCoords.removeAll(keepingCapacity: true)
             
             Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(coords.count) coords for geofence")
-            
-            var arrayCoords = [[Coord]]()
-            var tmpArrayCoord = [Coord]()
-            for coord in coords
-            {
-                tmpArrayCoord.append(coord)
-            }
-            tmpArrayCoord.append(coords[0])
-            arrayCoords.append(tmpArrayCoord)
-            
-            let geofence = createMultiPolygon(areaArray: arrayCoords)
 
             var tmpCoords: [jumpyCoord] = [jumpyCoord]()
-            //tmpCoords.reserveCapacity( min( 2000, jumpyCoords.count / 2 ) )
 
             // get min and max coords from the route coords list
             var minLat:Double = 90
             var maxLat:Double = -90
             var minLon:Double = 180
             var maxLon:Double = -180
-            for coord in coords
+            for polygon in multiPolygon
             {
-                minLat = min(minLat, coord.lat)
-                maxLat = max(maxLat, coord.lat)
-                minLon = min(minLon, coord.lon)
-                maxLon = max(maxLon, coord.lon)
+                for coord in polygon
+                {
+                    minLat = min(minLat, coord.lat)
+                    maxLat = max(maxLat, coord.lat)
+                    minLon = min(minLon, coord.lon)
+                    maxLon = max(maxLon, coord.lon)
+                }
             }
         
             // assemble the sql
@@ -1011,7 +1019,7 @@ class AutoInstanceController: InstanceControllerProto {
                     spawn_sec += 3600
                 }
 
-                if ( inPolygon(lat: lat, lon: lon, multiPolygon: geofence) )
+                if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
                 {
                     tmpCoords.append( jumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
                 }
@@ -1049,7 +1057,7 @@ class AutoInstanceController: InstanceControllerProto {
         Log.debug(message: "initJumpyCoords() - Starting")
         guard let mysql = DBController.global.mysql else 
         {
-            Log.error(message: "[WebHookRequestHandler] [initJumpyCoords] Failed to connect to database.")
+            Log.error(message: "[AutoInstanceController] initJumpyCoords() - Failed to connect to database.")
             return
         }
 
@@ -1057,34 +1065,23 @@ class AutoInstanceController: InstanceControllerProto {
         {
             findyLock.lock()
             findyCoords.removeAll(keepingCapacity: true)
-            
-            Log.debug(message: "initJumpyCoords() - got \(coords.count) coords for geofence")
-            
-            var arrayCoords = [[Coord]]()
-            var tmpArrayCoord = [Coord]()
-            for coord in coords
-            {
-                tmpArrayCoord.append(coord)
-            }
-            tmpArrayCoord.append(coords[0])
-            arrayCoords.append(tmpArrayCoord)
-            
-            let geofence = createMultiPolygon(areaArray: arrayCoords)
 
             var tmpCoords = [Coord]()
-            //tmpCoords.reserveCapacity( min( 2000, jumpyCoords.count / 2 ) )
 
             // get min and max coords from the route coords list
             var minLat:Double = 90
             var maxLat:Double = -90
             var minLon:Double = 180
             var maxLon:Double = -180
-            for coord in coords
+            for polygon in multiPolygon
             {
-                minLat = min(minLat, coord.lat)
-                maxLat = max(maxLat, coord.lat)
-                minLon = min(minLon, coord.lon)
-                maxLon = max(maxLon, coord.lon)
+                for coord in polygon
+                {
+                    minLat = min(minLat, coord.lat)
+                    maxLat = max(maxLat, coord.lat)
+                    minLon = min(minLon, coord.lon)
+                    maxLon = max(maxLon, coord.lon)
+                }
             }
         
             // assemble the sql
@@ -1099,7 +1096,7 @@ class AutoInstanceController: InstanceControllerProto {
 
             guard mysqlStmt.execute() else
             {
-                Log.error(message: "[initJumpyCoords] Failed to execute query. (\(mysqlStmt.errorMessage())")
+                Log.error(message: "[AutoInstanceController] initJumpyCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
                 throw DBController.DBError()
             }
 
@@ -1110,37 +1107,28 @@ class AutoInstanceController: InstanceControllerProto {
                 let lat = result[0] as! Double
                 let lon = result[1] as! Double
 
-                if ( inPolygon(lat: lat, lon: lon, multiPolygon: geofence) )
+                if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
                 {
                     tmpCoords.append( Coord(lat: lat,lon: lon) )
                 }
 
                 count += 1
             }
-            Log.debug(message: "initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
-            Log.debug(message: "initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
+            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
+            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
 
             if (count == 0)
             {
-                Log.debug(message: "initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
+                Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
             }
 
             if (tmpCoords.count == 0)
             {
-                Log.debug(message: "initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
+                Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
             }
 
             // sort the array, so 0-3600 sec in order
             findyCoords = tmpCoords
-
-            // did the list shrink from last query?
-            /*
-            let oldJumpyCoord = CircleInstanceController.currentDevicesMaxLocation[self.name] ?? 0
-            if (oldJumpyCoord >= jumpyCoords.count)
-            {
-                CircleInstanceController.currentDevicesMaxLocation[self.name] = jumpyCoords.count - 1
-            }
-            */
 
             CircleInstanceController.locationLock.lock()
             CircleInstanceController.currentDevicesMaxLocation[self.name] = 0
@@ -1338,5 +1326,38 @@ class AutoInstanceController: InstanceControllerProto {
         }
         
         return loc
+    }
+
+    private func createMultiPolygon(areaArray: [[Coord]]) -> MultiPolygon
+    {
+        var geofences = [[[LocationCoordinate2D]]]()
+        for coord in areaArray
+        {
+            var geofence = [LocationCoordinate2D]()
+            
+            for crd in coord
+            {
+                geofence.append(LocationCoordinate2D.init(latitude: crd.lat, longitude: crd.lon))
+            }
+            
+            geofences.append([geofence])
+        }
+        
+        return MultiPolygon.init(geofences)
+    }
+
+    private func inPolygon(lat: Double, lon: Double, multiPolygon: MultiPolygon) -> Bool
+    {
+        for polygon in multiPolygon.polygons
+        {
+            let coord = LocationCoordinate2D(latitude: lat, longitude: lon)
+            
+            if polygon.contains(coord, ignoreBoundary: false)
+            {
+                return true
+            }
+        }
+        
+        return false
     }
 }
