@@ -2395,6 +2395,10 @@ public class WebRequestHandler {
                 data["circle_pokemon_selected"] = true
             case .circleSmartPokemon:
                 data["circle_smart_pokemon_selected"] = true
+            case .jumpyPokemon:
+                data["jumpy_pokemon_selected"] = true
+            case .findyPokemon:
+                data["findy_pokemon_selected"] = true
             case .circleRaid:
                 data["circle_raid_selected"] = true
             case .circleSmartRaid:
@@ -2675,6 +2679,10 @@ public class WebRequestHandler {
                 data["circle_pokemon_selected"] = true
             case .circleSmartPokemon:
                 data["circle_smart_pokemon_selected"] = true
+            case .jumpyPokemon:
+                data["jumpy_pokemon_selected"] = true
+            case .findyPokemon:
+                data["findy_pokemon_selected"] = true
             case .circleRaid:
                 data["circle_raid_selected"] = true
             case .circleSmartRaid:
