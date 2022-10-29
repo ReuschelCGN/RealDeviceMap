@@ -994,6 +994,7 @@ class AutoInstanceController: InstanceControllerProto
 
             count += 1
         }
+        
         Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(count) spawnpoints in min/max rectangle")
         Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(tmpCoords.count) spawnpoints in geofence")
 
