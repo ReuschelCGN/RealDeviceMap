@@ -977,100 +977,97 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if MultiPolygon.polygons.count > 0
-        {
-            jumpyLock.lock()
-            jumpyCoords.removeAll(keepingCapacity: true)
-            
-            Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(MultiPolygon.count) coords for geofences")
-
-            var tmpCoords: [jumpyCoord] = [jumpyCoord]()
-
-            // get min and max coords from the route coords list
-            var minLat:Double = 90
-            var maxLat:Double = -90
-            var minLon:Double = 180
-            var maxLon:Double = -180
-            for polygon in multiPolygon.polygons
-            {
-                for coords in polygon.coordinates
-                {
-                    for coord in coords
-                    {
-                        minLat = min(minLat, coord.latitude)
-                        maxLat = max(maxLat, coord.latitude)
-                        minLon = min(minLon, coord.longitude)
-                        maxLon = max(maxLon, coord.longitude)
-                    }
-                }
-            }
+        jumpyLock.lock()
+        jumpyCoords.removeAll(keepingCapacity: true)
         
-            // assemble the sql
-            var sql = "select id, despawn_sec, lat, lon from spawnpoint where " 
-            sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
-            sql.append(" AND ")
-            sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-            sql.append(" AND despawn_sec is not null")
-            sql.append(" order by despawn_sec")
+        Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(MultiPolygon.count) coords for geofences")
 
-            let mysqlStmt = MySQLStmt(mysql)
-            _ = mysqlStmt.prepare(statement: sql)
+        var tmpCoords: [jumpyCoord] = [jumpyCoord]()
 
-            guard mysqlStmt.execute() else
+        // get min and max coords from the route coords list
+        var minLat:Double = 90
+        var maxLat:Double = -90
+        var minLon:Double = 180
+        var maxLon:Double = -180
+        for polygon in multiPolygon.polygons
+        {
+            for coords in polygon.coordinates
             {
-                Log.error(message: "[AutoInstanceController] initJumpyCoords() Failed to execute query. (\(mysqlStmt.errorMessage())")
-                throw DBController.DBError()
-            }
-
-            var count:Int = 0;
-            let results = mysqlStmt.results()
-            while let result = results.next()
-            { 
-                let id = result[0] as! UInt64
-                let despawn_sec = result[1] as! UInt16
-                let lat = result[2] as! Double
-                let lon = result[3] as! Double
-
-                var spawn_sec:Int = Int(despawn_sec)
-
-                spawn_sec -= 1800 // add 30min so when spawn should show, rdm not track 60min spawns
-
-                if (spawn_sec < 0)
+                for coord in coords
                 {
-                    spawn_sec += 3600
+                    minLat = min(minLat, coord.latitude)
+                    maxLat = max(maxLat, coord.latitude)
+                    minLon = min(minLon, coord.longitude)
+                    maxLon = max(maxLon, coord.longitude)
                 }
-
-                if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
-                {
-                    tmpCoords.append( jumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
-                }
-
-                count += 1
             }
-            Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(count) spawnpoints in min/max rectangle")
-            Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(tmpCoords.count) spawnpoints in geofence")
-
-            // sort the array, so 0-3600 sec in order
-            jumpyCoords = tmpCoords
-
-            // take lazy man's approach, probably not ideal
-            // add elements to end, so 3600-7199 sec
-            for coord in tmpCoords
-            {
-                jumpyCoords.append(jumpyCoord( id: coord.id, coord: coord.coord, spawn_sec: coord.spawn_sec + 3600 ))
-            }
-
-            // did the list shrink from last query?
-            AutoInstanceController.locationLock.lock()
-            let oldJumpyCoord = AutoInstanceController.currentDevicesMaxLocation[self.name] ?? 0
-            if (oldJumpyCoord >= jumpyCoords.count)
-            {
-                AutoInstanceController.currentDevicesMaxLocation[self.name] = jumpyCoords.count - 1
-            }
-            AutoInstanceController.locationLock.unlock()
-
-            jumpyLock.unlock()
         }
+    
+        // assemble the sql
+        var sql = "select id, despawn_sec, lat, lon from spawnpoint where " 
+        sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
+        sql.append(" AND ")
+        sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
+        sql.append(" AND despawn_sec is not null")
+        sql.append(" order by despawn_sec")
+
+        let mysqlStmt = MySQLStmt(mysql)
+        _ = mysqlStmt.prepare(statement: sql)
+
+        guard mysqlStmt.execute() else
+        {
+            Log.error(message: "[AutoInstanceController] initJumpyCoords() Failed to execute query. (\(mysqlStmt.errorMessage())")
+            throw DBController.DBError()
+        }
+
+        var count:Int = 0;
+        let results = mysqlStmt.results()
+        while let result = results.next()
+        { 
+            let id = result[0] as! UInt64
+            let despawn_sec = result[1] as! UInt16
+            let lat = result[2] as! Double
+            let lon = result[3] as! Double
+
+            var spawn_sec:Int = Int(despawn_sec)
+
+            spawn_sec -= 1800 // add 30min so when spawn should show, rdm not track 60min spawns
+
+            if (spawn_sec < 0)
+            {
+                spawn_sec += 3600
+            }
+
+            if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
+            {
+                tmpCoords.append( jumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
+            }
+
+            count += 1
+        }
+        Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(count) spawnpoints in min/max rectangle")
+        Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(tmpCoords.count) spawnpoints in geofence")
+
+        // sort the array, so 0-3600 sec in order
+        jumpyCoords = tmpCoords
+
+        // take lazy man's approach, probably not ideal
+        // add elements to end, so 3600-7199 sec
+        for coord in tmpCoords
+        {
+            jumpyCoords.append(jumpyCoord( id: coord.id, coord: coord.coord, spawn_sec: coord.spawn_sec + 3600 ))
+        }
+
+        // did the list shrink from last query?
+        AutoInstanceController.locationLock.lock()
+        let oldJumpyCoord = AutoInstanceController.currentDevicesMaxLocation[self.name] ?? 0
+        if (oldJumpyCoord >= jumpyCoords.count)
+        {
+            AutoInstanceController.currentDevicesMaxLocation[self.name] = jumpyCoords.count - 1
+        }
+        AutoInstanceController.locationLock.unlock()
+
+        jumpyLock.unlock()
     }
 
     func initFindyCoords() throws
@@ -1082,84 +1079,81 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if MultiPolygon.polygons.count > 0
+        findyLock.lock()
+        findyCoords.removeAll(keepingCapacity: true)
+
+        var tmpCoords = [Coord]()
+
+        // get min and max coords from the route coords list
+        var minLat:Double = 90
+        var maxLat:Double = -90
+        var minLon:Double = 180
+        var maxLon:Double = -180
+        for polygon in multiPolygon.polygons
         {
-            findyLock.lock()
-            findyCoords.removeAll(keepingCapacity: true)
-
-            var tmpCoords = [Coord]()
-
-            // get min and max coords from the route coords list
-            var minLat:Double = 90
-            var maxLat:Double = -90
-            var minLon:Double = 180
-            var maxLon:Double = -180
-            for polygon in multiPolygon.polygons
+            for coords in polygon.coordinates
             {
-                for coords in polygon.coordinates
+                for coord in coords
                 {
-                    for coord in coords
-                    {
-                        minLat = min(minLat, coord.latitude)
-                        maxLat = max(maxLat, coord.latitude)
-                        minLon = min(minLon, coord.longitude)
-                        maxLon = max(maxLon, coord.longitude)
-                    }
+                    minLat = min(minLat, coord.latitude)
+                    maxLat = max(maxLat, coord.latitude)
+                    minLon = min(minLon, coord.longitude)
+                    maxLon = max(maxLon, coord.longitude)
                 }
             }
-
-            // assemble the sql
-            var sql = "select lat, lon from spawnpoint where " 
-            sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
-            sql.append(" AND ")
-            sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-            sql.append(" AND despawn_sec is null")
-
-            let mysqlStmt = MySQLStmt(mysql)
-            _ = mysqlStmt.prepare(statement: sql)
-
-            guard mysqlStmt.execute() else
-            {
-                Log.error(message: "[AutoInstanceController] initFindyCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
-                throw DBController.DBError()
-            }
-
-            var count:Int = 0;
-            let results = mysqlStmt.results()
-            while let result = results.next()
-            { 
-                let lat = result[0] as! Double
-                let lon = result[1] as! Double
-
-                if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
-                {
-                    tmpCoords.append( Coord(lat: lat,lon: lon) )
-                }
-
-                count += 1
-            }
-            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
-            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
-
-            if (count == 0)
-            {
-                Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
-            }
-
-            if (tmpCoords.count == 0)
-            {
-                Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
-            }
-
-            // sort the array, so 0-3600 sec in order
-            findyCoords = tmpCoords
-
-            AutoInstanceController.locationLock.lock()
-            AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
-            AutoInstanceController.locationLock.unlock()
-
-            findyLock.unlock()
         }
+
+        // assemble the sql
+        var sql = "select lat, lon from spawnpoint where " 
+        sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
+        sql.append(" AND ")
+        sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
+        sql.append(" AND despawn_sec is null")
+
+        let mysqlStmt = MySQLStmt(mysql)
+        _ = mysqlStmt.prepare(statement: sql)
+
+        guard mysqlStmt.execute() else
+        {
+            Log.error(message: "[AutoInstanceController] initFindyCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
+            throw DBController.DBError()
+        }
+
+        var count:Int = 0;
+        let results = mysqlStmt.results()
+        while let result = results.next()
+        { 
+            let lat = result[0] as! Double
+            let lon = result[1] as! Double
+
+            if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) )
+            {
+                tmpCoords.append( Coord(lat: lat,lon: lon) )
+            }
+
+            count += 1
+        }
+        Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
+        Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
+
+        if (count == 0)
+        {
+            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(count) spawnpoints in min/max rectangle with null tth")
+        }
+
+        if (tmpCoords.count == 0)
+        {
+            Log.debug(message: "[AutoInstanceController] initFindyCoords() - got \(tmpCoords.count) spawnpoints in geofence with null tth")
+        }
+
+        // sort the array, so 0-3600 sec in order
+        findyCoords = tmpCoords
+
+        AutoInstanceController.locationLock.lock()
+        AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
+        AutoInstanceController.locationLock.unlock()
+
+        findyLock.unlock()
     }
 
     func secondsFromTopOfHour(seconds: UInt64 )-> (UInt64)
