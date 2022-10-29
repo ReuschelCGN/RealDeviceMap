@@ -977,7 +977,7 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if MultiPolygon.count > 0
+        if MultiPolygon.polygons.count > 0
         {
             jumpyLock.lock()
             jumpyCoords.removeAll(keepingCapacity: true)
@@ -1082,7 +1082,7 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if MultiPolygon.count > 0
+        if MultiPolygon.polygons.count > 0
         {
             findyLock.lock()
             findyCoords.removeAll(keepingCapacity: true)
