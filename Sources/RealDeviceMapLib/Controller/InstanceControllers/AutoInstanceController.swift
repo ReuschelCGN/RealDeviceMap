@@ -1094,7 +1094,7 @@ class AutoInstanceController: InstanceControllerProto
             var maxLon:Double = -180
             for polygon in multiPolygon.polygons
             {
-                for coord in polygon
+                for coord in polygon.coordinates
                 {
                     minLat = min(minLat, coord.latitude)
                     maxLat = max(maxLat, coord.latitude)
