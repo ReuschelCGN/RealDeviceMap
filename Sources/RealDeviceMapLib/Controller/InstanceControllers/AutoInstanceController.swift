@@ -14,8 +14,8 @@ import PerfectMySQL
 import Turf
 import S2Geometry
 
-class AutoInstanceController: InstanceControllerProto {
-
+class AutoInstanceController: InstanceControllerProto
+{
     enum AutoType {
         case quest
         case jumpyPokemon
@@ -257,695 +257,708 @@ class AutoInstanceController: InstanceControllerProto {
             bootstrappCellIDs = missingCellIDs
             bootstrappTotalCount = allCells.count
         }
-
     }
 
-    deinit {
+    deinit
+    {
         stop()
     }
 
-    private func update() {
-        switch type {
-        case .quest:
-            stopsLock.lock()
-            self.allStops = []
-            for polygon in multiPolygon.polygons {
+    private func update() 
+    {
+        switch type 
+            {
+            case .quest:
+            {
+                stopsLock.lock()
+                self.allStops = []
+                for polygon in multiPolygon.polygons {
 
-                if let bounds = BoundingBox(from: polygon.outerRing.coordinates),
-                    let stops = try? Pokestop.getAll(
-                        minLat: bounds.southWest.latitude, maxLat: bounds.northEast.latitude,
-                        minLon: bounds.southWest.longitude, maxLon: bounds.northEast.longitude,
-                        updated: 0, showPokestops: true, showQuests: true, showLures: true, showInvasions: false) {
+                    if let bounds = BoundingBox(from: polygon.outerRing.coordinates),
+                        let stops = try? Pokestop.getAll(
+                            minLat: bounds.southWest.latitude, maxLat: bounds.northEast.latitude,
+                            minLon: bounds.southWest.longitude, maxLon: bounds.northEast.longitude,
+                            updated: 0, showPokestops: true, showQuests: true, showLures: true, showInvasions: false) {
 
-                    for stop in stops {
-                        let coord = LocationCoordinate2D(latitude: stop.lat, longitude: stop.lon)
-                        if polygon.contains(coord, ignoreBoundary: false) {
-                            if self.questMode == .normal || self.questMode == .both {
-                                self.allStops!.append(PokestopWithMode(pokestop: stop, alternative: false))
-                            }
-                            if self.questMode == .alternative || self.questMode == .both {
-                                self.allStops!.append(PokestopWithMode(pokestop: stop, alternative: true))
+                        for stop in stops {
+                            let coord = LocationCoordinate2D(latitude: stop.lat, longitude: stop.lon)
+                            if polygon.contains(coord, ignoreBoundary: false) {
+                                if self.questMode == .normal || self.questMode == .both {
+                                    self.allStops!.append(PokestopWithMode(pokestop: stop, alternative: false))
+                                }
+                                if self.questMode == .alternative || self.questMode == .both {
+                                    self.allStops!.append(PokestopWithMode(pokestop: stop, alternative: true))
+                                }
                             }
                         }
                     }
-                }
 
-            }
-            self.todayStops = []
-            self.todayStopsTries = [:]
-            self.doneDate = nil
-            for stop in self.allStops! {
-                if (
-                    (!stop.alternative && stop.pokestop.questType == nil) ||
-                    (stop.alternative && stop.pokestop.alternativeQuestType == nil)
-                ) &&
-                stop.pokestop.enabled == true {
-                    self.todayStops!.append(stop)
                 }
+                self.todayStops = []
+                self.todayStopsTries = [:]
+                self.doneDate = nil
+                for stop in self.allStops! {
+                    if (
+                        (!stop.alternative && stop.pokestop.questType == nil) ||
+                        (stop.alternative && stop.pokestop.alternativeQuestType == nil)
+                    ) &&
+                    stop.pokestop.enabled == true {
+                        self.todayStops!.append(stop)
+                    }
+                }
+                stopsLock.unlock()
             }
-            stopsLock.unlock()
-        }
-        case .findyPokemon:
-        {
-            initFindyCoords()
-            AutoInstanceController.findyCache.set(id: self.name, value: 1)
-        }
-        case .jumpyPokemon:
-        {
-            initJumpyCoords()
-             AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
-        }
+            case .findyPokemon:
+            {
+                initFindyCoords()
+                AutoInstanceController.findyCache.set(id: self.name, value: 1)
+            }
+            case .jumpyPokemon:
+            {
+                initJumpyCoords()
+                AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
+            }
     }
 
     func getTask(mysql: MySQL, uuid: String, username: String?, account: Account?, timestamp: UInt64) -> [String: Any]
     {
         switch type
         {
-        case .jumpyPokemon
-        { 
-            // don't give a crap about laptime, as by definition it is 1hr
-            lock.unlock()
+            case .jumpyPokemon
+            { 
+                // don't give a crap about laptime, as by definition it is 1hr
+                lock.unlock()
 
-            let hit = AutoInstanceController.jumpyCache.get(id: self.name) ?? 0
-            if hit == 0
-            {
-                try? initJumpyCoords()
-                AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
-            }
-            
-            Log.debug(message: "getTask() - jumpy started for \(self.name)")
-
-            let (_,min,sec) = secondsToHoursMinutesSeconds()
-            let curSecInHour = min*60 + sec
-            jumpyLock.lock()
-            
-            // increment location
-            var loc:Int = 0
-            AutoInstanceController.locationLock.lock()
-            let keyExists = AutoInstanceController.currentDevicesMaxLocation[self.name] != nil
-            if keyExists
-            {
-                loc = AutoInstanceController.currentDevicesMaxLocation[self.name]!
-            }
-
-            let newLoc = determineNextJumpyLocation(CurTime: curSecInHour, curLocation: loc)
-            firstRun = false
-
-            Log.debug(message: "getTask() jumpy - Instance: \(self.name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(jumpyCoords.count / 2)")
-            
-            var currentJumpyCoord:jumpyCoord = jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
-            if jumpyCoords.indices.contains(newLoc)
-            {
-                AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
-                currentJumpyCoord = (try? jumpyCoords[newLoc]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
-            }
-            else
-            {
-                if jumpyCoords.indices.contains(0)
+                let hit = AutoInstanceController.jumpyCache.get(id: self.name) ?? 0
+                if hit == 0
                 {
-                    AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
-                    currentJumpyCoord = (try? jumpyCoords[0]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                    try? initJumpyCoords()
+                    AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
+                }
+                
+                Log.debug(message: "getTask() - jumpy started for \(self.name)")
+
+                let (_,min,sec) = secondsToHoursMinutesSeconds()
+                let curSecInHour = min*60 + sec
+                jumpyLock.lock()
+                
+                // increment location
+                var loc:Int = 0
+                AutoInstanceController.locationLock.lock()
+                let keyExists = AutoInstanceController.currentDevicesMaxLocation[self.name] != nil
+                if keyExists
+                {
+                    loc = AutoInstanceController.currentDevicesMaxLocation[self.name]!
+                }
+
+                let newLoc = determineNextJumpyLocation(CurTime: curSecInHour, curLocation: loc)
+                firstRun = false
+
+                Log.debug(message: "getTask() jumpy - Instance: \(self.name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(jumpyCoords.count / 2)")
+                
+                var currentJumpyCoord:jumpyCoord = jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                if jumpyCoords.indices.contains(newLoc)
+                {
+                    AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
+                    currentJumpyCoord = (try? jumpyCoords[newLoc]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
                 }
                 else
                 {
-                    AutoInstanceController.currentDevicesMaxLocation[self.name] = -1
+                    if jumpyCoords.indices.contains(0)
+                    {
+                        AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
+                        currentJumpyCoord = (try? jumpyCoords[0]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                    }
+                    else
+                    {
+                        AutoInstanceController.currentDevicesMaxLocation[self.name] = -1
+                    }
                 }
+                AutoInstanceController.locationLock.unlock()
+
+                jumpyLock.unlock()
+
+                var task: [String: Any] = ["action": "scan_pokemon", "lat": currentJumpyCoord.coord.lat, "lon": currentJumpyCoord.coord.lon, "min_level": minLevel, "max_level": maxLevel]
+                
+                if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
+
+                Log.debug(message: "getTask() jumpy- ended")
+
+                return task
             }
-            AutoInstanceController.locationLock.unlock()
-
-            jumpyLock.unlock()
-
-            var task: [String: Any] = ["action": "scan_pokemon", "lat": currentJumpyCoord.coord.lat, "lon": currentJumpyCoord.coord.lon, "min_level": minLevel, "max_level": maxLevel]
-            
-            if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
-
-            Log.debug(message: "getTask() jumpy- ended")
-
-            return task
-        }
-        case .findyPokemon
-        {
-            // get route like for findy, specify fence and use tth = null
-            // with each gettask, just increment to next point in list
-            // requery the route every ???? min, set with cache above
-            // run until data length == 0, then output a message to tell user done
-            // since we actually care about laptime, use that variable
-
-            lock.unlock()
-
-            findyLock.lock()
-
-            let hit = AutoInstanceController.findyCache.get(id: self.name) ?? 0
-            if hit == 0
+            case .findyPokemon
             {
-                try? initFindyCoords()
-                AutoInstanceController.findyCache.set(id: self.name, value: 1)
-            }
+                // get route like for findy, specify fence and use tth = null
+                // with each gettask, just increment to next point in list
+                // requery the route every ???? min, set with cache above
+                // run until data length == 0, then output a message to tell user done
+                // since we actually care about laptime, use that variable
 
-            // increment location
-            var loc:Int = 0
-            AutoInstanceController.locationLock.lock()
-            let keyExists = AutoInstanceController.currentDevicesMaxLocation[self.name] != nil
-            if keyExists
-            {
-                loc = AutoInstanceController.currentDevicesMaxLocation[self.name]!
-            }
-            else
-            {
-                loc = 0
-            }
+                lock.unlock()
 
-            var newLoc = loc + 1
-            if (newLoc >= findyCoords.count )
-            {
-                newLoc = 0
-            }
+                findyLock.lock()
 
-            Log.debug(message: "getTask() findy - oldLoc=\(loc) & newLoc=\(newLoc)/\(findyCoords.count)")
-
-            AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
-            
-            var currentFindyCoord:Coord = Coord(lat: 0.0,lon: 0.0)
-            if findyCoords.indices.contains(newLoc)
-            {
-                currentFindyCoord = findyCoords[newLoc]
-            }
-            else
-            {
-                if findyCoords.indices.contains(0)
+                let hit = AutoInstanceController.findyCache.get(id: self.name) ?? 0
+                if hit == 0
                 {
-                    AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
+                    try? initFindyCoords()
+                    AutoInstanceController.findyCache.set(id: self.name, value: 1)
+                }
+
+                // increment location
+                var loc:Int = 0
+                AutoInstanceController.locationLock.lock()
+                let keyExists = AutoInstanceController.currentDevicesMaxLocation[self.name] != nil
+                if keyExists
+                {
+                    loc = AutoInstanceController.currentDevicesMaxLocation[self.name]!
+                }
+                else
+                {
+                    loc = 0
+                }
+
+                var newLoc = loc + 1
+                if (newLoc >= findyCoords.count )
+                {
+                    newLoc = 0
+                }
+
+                Log.debug(message: "getTask() findy - oldLoc=\(loc) & newLoc=\(newLoc)/\(findyCoords.count)")
+
+                AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
+                
+                var currentFindyCoord:Coord = Coord(lat: 0.0,lon: 0.0)
+                if findyCoords.indices.contains(newLoc)
+                {
                     currentFindyCoord = findyCoords[newLoc]
                 }
                 else
                 {
-                    AutoInstanceController.currentDevicesMaxLocation[self.name] = -1
-                }
-            }
-
-            AutoInstanceController.locationLock.unlock()
- 
-            var task: [String: Any] = ["action": "scan_pokemon", "lat": currentFindyCoord.lat, "lon": currentFindyCoord.lon, "min_level": minLevel, "max_level": maxLevel]
-            
-            findyLock.unlock()
-
-            if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
-
-            Log.debug(message: "getTask() findy- ended")
-
-            return task
-        }
-        case .quest:
-            bootstrappLock.lock()
-            if !bootstrappCellIDs.isEmpty {
-
-                if let target = bootstrappCellIDs.popLast() {
-                    bootstrappLock.unlock()
-
-                    let cell = S2Cell(cellId: target)
-                    let center = S2LatLng(point: cell.center)
-                    let coord = center.coord
-                    let cellIDs = center.getLoadedS2CellIds()
-
-                    bootstrappLock.lock()
-                    for cellID in cellIDs {
-                        if let index = bootstrappCellIDs.firstIndex(of: cellID) {
-                            bootstrappCellIDs.remove(at: index)
-                        }
+                    if findyCoords.indices.contains(0)
+                    {
+                        AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
+                        currentFindyCoord = findyCoords[newLoc]
                     }
-                    if bootstrappCellIDs.isEmpty {
+                    else
+                    {
+                        AutoInstanceController.currentDevicesMaxLocation[self.name] = -1
+                    }
+                }
+
+                AutoInstanceController.locationLock.unlock()
+    
+                var task: [String: Any] = ["action": "scan_pokemon", "lat": currentFindyCoord.lat, "lon": currentFindyCoord.lon, "min_level": minLevel, "max_level": maxLevel]
+                
+                findyLock.unlock()
+
+                if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
+
+                Log.debug(message: "getTask() findy- ended")
+
+                return task
+            }
+            case .quest:
+                bootstrappLock.lock()
+                if !bootstrappCellIDs.isEmpty {
+
+                    if let target = bootstrappCellIDs.popLast() {
                         bootstrappLock.unlock()
-                        try? bootstrap()
+
+                        let cell = S2Cell(cellId: target)
+                        let center = S2LatLng(point: cell.center)
+                        let coord = center.coord
+                        let cellIDs = center.getLoadedS2CellIds()
+
                         bootstrappLock.lock()
+                        for cellID in cellIDs {
+                            if let index = bootstrappCellIDs.firstIndex(of: cellID) {
+                                bootstrappCellIDs.remove(at: index)
+                            }
+                        }
                         if bootstrappCellIDs.isEmpty {
                             bootstrappLock.unlock()
-                            update()
+                            try? bootstrap()
+                            bootstrappLock.lock()
+                            if bootstrappCellIDs.isEmpty {
+                                bootstrappLock.unlock()
+                                update()
+                            } else {
+                                bootstrappLock.unlock()
+                            }
                         } else {
                             bootstrappLock.unlock()
                         }
+
+                        return ["action": "scan_raid", "lat": coord.latitude, "lon": coord.longitude,
+                                "min_level": minLevel, "max_level": maxLevel]
                     } else {
                         bootstrappLock.unlock()
-                    }
-
-                    return ["action": "scan_raid", "lat": coord.latitude, "lon": coord.longitude,
-                            "min_level": minLevel, "max_level": maxLevel]
-                } else {
-                    bootstrappLock.unlock()
-                    return [String: Any]()
-                }
-
-            } else {
-                bootstrappLock.unlock()
-
-                guard username != nil || !InstanceController.requireAccountEnabled else {
-                    Log.warning(
-                        message: "[AutoInstanceController] [\(name)] [\(uuid)] No username specified. Ignoring..."
-                    )
-                    return [:]
-                }
-
-                guard account != nil || !InstanceController.requireAccountEnabled else {
-                    Log.warning(
-                        message: "[AutoInstanceController] [\(name)] [\(uuid)] No account specified. Ignoring..."
-                    )
-                    return [:]
-                }
-
-                stopsLock.lock()
-                if todayStops == nil {
-                    todayStops = []
-                    todayStopsTries = [:]
-                }
-                if allStops == nil {
-                    allStops = []
-                }
-                if allStops!.isEmpty {
-                    stopsLock.unlock()
-                    return [String: Any]()
-                }
-                if todayStops!.isEmpty {
-                    guard Date().timeIntervalSince(lastDoneCheck) >= 600 else {
-                        stopsLock.unlock()
-                        if doneDate == nil {
-                            doneDate = Date()
-                        }
-                        delegate?.instanceControllerDone(mysql: mysql, name: name)
-                        return [:]
-                    }
-                    lastDoneCheck = Date()
-                    let ids = Array(Set(self.allStops!.map({ (stop) -> String in
-                        return stop.pokestop.id
-                    })))
-                    let newStops: [Pokestop]
-                    do {
-                        newStops = try Pokestop.getIn(mysql: mysql, ids: ids)
-                    } catch {
-                        Log.error(
-                           message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get today stops."
-                        )
-                        return [:]
-                    }
-
-                    for stop in newStops {
-                        if questMode == .normal || questMode == .both {
-                            let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: false)
-                            let count = todayStopsTries![pokestopWithMode] ?? 0
-                            if stop.questType == nil && stop.enabled == true && count <= limit {
-                                todayStops!.append(pokestopWithMode)
-                            }
-                        }
-                        if questMode == .alternative || questMode == .both {
-                            let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: true)
-                            let count = todayStopsTries![pokestopWithMode] ?? 0
-                            if stop.alternativeQuestType == nil && stop.enabled == true && count <= limit {
-                                todayStops!.append(pokestopWithMode)
-                            }
-                        }
-                    }
-                    if todayStops!.isEmpty {
-                        stopsLock.unlock()
-                        if doneDate == nil {
-                            doneDate = Date()
-                        }
-                        delegate?.instanceControllerDone(mysql: mysql, name: name)
-                        return [:]
-                    }
-                }
-                stopsLock.unlock()
-
-                let pokestop: PokestopWithMode
-                let lastCoord: Coord?
-                do {
-                    lastCoord = try Cooldown.lastLocation(account: account, deviceUUID: uuid)
-                } catch {
-                    Log.error(
-                        message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get last location."
-                    )
-                    return [String: Any]()
-                }
-
-                if lastCoord != nil {
-
-                    var closestOverall: PokestopWithMode?
-                    var closestOverallDistance: Double = 10000000000000000
-
-                    var closestNormal: PokestopWithMode?
-                    var closestNormalDistance: Double = 10000000000000000
-
-                    var closestAlternative: PokestopWithMode?
-                    var closestAlternativeDistance: Double = 10000000000000000
-
-                    stopsLock.lock()
-                    let todayStopsC = todayStops
-                    stopsLock.unlock()
-                    if todayStopsC!.isEmpty {
                         return [String: Any]()
                     }
 
-                    for stop in todayStopsC! {
-                        let coord = Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)
-                        let dist = lastCoord!.distance(to: coord)
-                        if dist < closestOverallDistance {
-                            closestOverall = stop
-                            closestOverallDistance = dist
-                        }
-                        if !stop.alternative && dist < closestNormalDistance {
-                            closestNormal = stop
-                            closestNormalDistance = dist
-                        }
-                        if stop.alternative && dist < closestAlternativeDistance {
-                            closestAlternative = stop
-                            closestAlternativeDistance = dist
-                        }
-                    }
-
-                    var closest: PokestopWithMode?
-                    let mode = stopsLock.doWithLock { lastMode[username ?? uuid] }
-                    if mode == nil {
-                        closest = closestOverall
-                    } else if mode == false {
-                        closest = closestNormal ?? closestOverall
-                    } else {
-                        closest = closestAlternative ?? closestOverall
-                    }
-
-                    if closest == nil {
-                        return [:]
-                    }
-                    if (mode == nil || mode == true) && closest!.alternative == false {
-                        Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] switching quest mode from " +
-                            "\(mode == true ? "alternative" : "none") to normal")
-                        var closestAR: PokestopWithMode?
-                        var closestARDistance: Double = 10000000000000000
-                        for stop in allStops! where stop.pokestop.arScanEligible == true {
-                            let coord = Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)
-                            let dist = lastCoord!.distance(to: coord)
-                            if dist < closestARDistance {
-                                closestAR = stop
-                                closestARDistance = dist
-                            }
-                        }
-                        if closestAR != nil {
-                            closestAR!.alternative = closest!.alternative
-                            closest = closestAR
-                            Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] scanning " +
-                                "AR eligible stop \(closest!.pokestop.id)")
-                        } else {
-                            Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] " +
-                                "no AR eligible stop found to scan")
-                        }
-                    }
-
-                    pokestop = closest!
-
-                    var nearbyStops = [pokestop]
-                    let pokestopCoord = Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
-                    for stop in todayStopsC! {
-                        if pokestop.alternative == stop.alternative && pokestopCoord.distance(
-                                to: Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)) <= spinDistance {
-                            nearbyStops.append(stop)
-                        }
-                    }
-                    stopsLock.lock()
-                    for pokestop in nearbyStops {
-                        if let index = todayStops!.firstIndex(of: pokestop) {
-                            todayStops!.remove(at: index)
-                        }
-                    }
-                    stopsLock.unlock()
                 } else {
-                    stopsLock.lock()
-                    if let stop = todayStops!.first {
-                        pokestop = stop
-                        _ = todayStops!.removeFirst()
-                    } else {
-                        stopsLock.unlock()
+                    bootstrappLock.unlock()
+
+                    guard username != nil || !InstanceController.requireAccountEnabled else {
+                        Log.warning(
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] No username specified. Ignoring..."
+                        )
                         return [:]
                     }
-                    stopsLock.unlock()
-                }
 
-                let delay: Int
-                let encounterTime: UInt32
-                do {
-                    let result = try Cooldown.cooldown(
-                        account: account,
-                        deviceUUID: uuid,
-                        location: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
-                    )
-                    delay = result.delay
-                    encounterTime = result.encounterTime
-                } catch {
-                    Log.error(message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to calculate cooldown.")
-                    stopsLock.lock()
-                    todayStops?.append(pokestop)
-                    stopsLock.unlock()
-                    return [String: Any]()
-                }
+                    guard account != nil || !InstanceController.requireAccountEnabled else {
+                        Log.warning(
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] No account specified. Ignoring..."
+                        )
+                        return [:]
+                    }
 
-                if delay >= delayLogout && account != nil {
                     stopsLock.lock()
-                    todayStops?.append(pokestop)
-                    stopsLock.unlock()
-                    accountsLock.lock()
-                    var newUsername: String?
-                    do {
-                        if accounts[uuid] == nil {
-                            accountsLock.unlock()
-                            let account = try getAccount(
-                                mysql: mysql,
-                                uuid: uuid,
-                                encounterTarget: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
-                            )
-                            accountsLock.lock()
-                            if accounts[uuid] == nil {
-                                newUsername = account?.username
-                                accounts[uuid] = newUsername
-                                Log.debug(
-                                    message: "[AutoInstanceController] [\(name)] [\(uuid)] Over Logout Delay. " +
-                                             "Switching Account from \(username ?? "?") to \(newUsername ?? "?")"
-                                )
+                    if todayStops == nil {
+                        todayStops = []
+                        todayStopsTries = [:]
+                    }
+                    if allStops == nil {
+                        allStops = []
+                    }
+                    if allStops!.isEmpty {
+                        stopsLock.unlock()
+                        return [String: Any]()
+                    }
+                    if todayStops!.isEmpty {
+                        guard Date().timeIntervalSince(lastDoneCheck) >= 600 else {
+                            stopsLock.unlock()
+                            if doneDate == nil {
+                                doneDate = Date()
                             }
-                        } else {
-                            newUsername = accounts[uuid]
+                            delegate?.instanceControllerDone(mysql: mysql, name: name)
+                            return [:]
                         }
-                        accountsLock.unlock()
+                        lastDoneCheck = Date()
+                        let ids = Array(Set(self.allStops!.map({ (stop) -> String in
+                            return stop.pokestop.id
+                        })))
+                        let newStops: [Pokestop]
+                        do {
+                            newStops = try Pokestop.getIn(mysql: mysql, ids: ids)
+                        } catch {
+                            Log.error(
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get today stops."
+                            )
+                            return [:]
+                        }
+
+                        for stop in newStops {
+                            if questMode == .normal || questMode == .both {
+                                let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: false)
+                                let count = todayStopsTries![pokestopWithMode] ?? 0
+                                if stop.questType == nil && stop.enabled == true && count <= limit {
+                                    todayStops!.append(pokestopWithMode)
+                                }
+                            }
+                            if questMode == .alternative || questMode == .both {
+                                let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: true)
+                                let count = todayStopsTries![pokestopWithMode] ?? 0
+                                if stop.alternativeQuestType == nil && stop.enabled == true && count <= limit {
+                                    todayStops!.append(pokestopWithMode)
+                                }
+                            }
+                        }
+                        if todayStops!.isEmpty {
+                            stopsLock.unlock()
+                            if doneDate == nil {
+                                doneDate = Date()
+                            }
+                            delegate?.instanceControllerDone(mysql: mysql, name: name)
+                            return [:]
+                        }
+                    }
+                    stopsLock.unlock()
+
+                    let pokestop: PokestopWithMode
+                    let lastCoord: Coord?
+                    do {
+                        lastCoord = try Cooldown.lastLocation(account: account, deviceUUID: uuid)
                     } catch {
                         Log.error(
-                            message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get account in advance."
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get last location."
+                        )
+                        return [String: Any]()
+                    }
+
+                    if lastCoord != nil {
+
+                        var closestOverall: PokestopWithMode?
+                        var closestOverallDistance: Double = 10000000000000000
+
+                        var closestNormal: PokestopWithMode?
+                        var closestNormalDistance: Double = 10000000000000000
+
+                        var closestAlternative: PokestopWithMode?
+                        var closestAlternativeDistance: Double = 10000000000000000
+
+                        stopsLock.lock()
+                        let todayStopsC = todayStops
+                        stopsLock.unlock()
+                        if todayStopsC!.isEmpty {
+                            return [String: Any]()
+                        }
+
+                        for stop in todayStopsC! {
+                            let coord = Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)
+                            let dist = lastCoord!.distance(to: coord)
+                            if dist < closestOverallDistance {
+                                closestOverall = stop
+                                closestOverallDistance = dist
+                            }
+                            if !stop.alternative && dist < closestNormalDistance {
+                                closestNormal = stop
+                                closestNormalDistance = dist
+                            }
+                            if stop.alternative && dist < closestAlternativeDistance {
+                                closestAlternative = stop
+                                closestAlternativeDistance = dist
+                            }
+                        }
+
+                        var closest: PokestopWithMode?
+                        let mode = stopsLock.doWithLock { lastMode[username ?? uuid] }
+                        if mode == nil {
+                            closest = closestOverall
+                        } else if mode == false {
+                            closest = closestNormal ?? closestOverall
+                        } else {
+                            closest = closestAlternative ?? closestOverall
+                        }
+
+                        if closest == nil {
+                            return [:]
+                        }
+                        if (mode == nil || mode == true) && closest!.alternative == false {
+                            Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] switching quest mode from " +
+                                "\(mode == true ? "alternative" : "none") to normal")
+                            var closestAR: PokestopWithMode?
+                            var closestARDistance: Double = 10000000000000000
+                            for stop in allStops! where stop.pokestop.arScanEligible == true {
+                                let coord = Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)
+                                let dist = lastCoord!.distance(to: coord)
+                                if dist < closestARDistance {
+                                    closestAR = stop
+                                    closestARDistance = dist
+                                }
+                            }
+                            if closestAR != nil {
+                                closestAR!.alternative = closest!.alternative
+                                closest = closestAR
+                                Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] scanning " +
+                                    "AR eligible stop \(closest!.pokestop.id)")
+                            } else {
+                                Log.debug(message: "[AutoInstanceController] [\(username ?? "?")] " +
+                                    "no AR eligible stop found to scan")
+                            }
+                        }
+
+                        pokestop = closest!
+
+                        var nearbyStops = [pokestop]
+                        let pokestopCoord = Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
+                        for stop in todayStopsC! {
+                            if pokestop.alternative == stop.alternative && pokestopCoord.distance(
+                                    to: Coord(lat: stop.pokestop.lat, lon: stop.pokestop.lon)) <= spinDistance {
+                                nearbyStops.append(stop)
+                            }
+                        }
+                        stopsLock.lock()
+                        for pokestop in nearbyStops {
+                            if let index = todayStops!.firstIndex(of: pokestop) {
+                                todayStops!.remove(at: index)
+                            }
+                        }
+                        stopsLock.unlock()
+                    } else {
+                        stopsLock.lock()
+                        if let stop = todayStops!.first {
+                            pokestop = stop
+                            _ = todayStops!.removeFirst()
+                        } else {
+                            stopsLock.unlock()
+                            return [:]
+                        }
+                        stopsLock.unlock()
+                    }
+
+                    let delay: Int
+                    let encounterTime: UInt32
+                    do {
+                        let result = try Cooldown.cooldown(
+                            account: account,
+                            deviceUUID: uuid,
+                            location: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
+                        )
+                        delay = result.delay
+                        encounterTime = result.encounterTime
+                    } catch {
+                        Log.error(message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to calculate cooldown.")
+                        stopsLock.lock()
+                        todayStops?.append(pokestop)
+                        stopsLock.unlock()
+                        return [String: Any]()
+                    }
+
+                    if delay >= delayLogout && account != nil {
+                        stopsLock.lock()
+                        todayStops?.append(pokestop)
+                        stopsLock.unlock()
+                        accountsLock.lock()
+                        var newUsername: String?
+                        do {
+                            if accounts[uuid] == nil {
+                                accountsLock.unlock()
+                                let account = try getAccount(
+                                    mysql: mysql,
+                                    uuid: uuid,
+                                    encounterTarget: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon)
+                                )
+                                accountsLock.lock()
+                                if accounts[uuid] == nil {
+                                    newUsername = account?.username
+                                    accounts[uuid] = newUsername
+                                    Log.debug(
+                                        message: "[AutoInstanceController] [\(name)] [\(uuid)] Over Logout Delay. " +
+                                                "Switching Account from \(username ?? "?") to \(newUsername ?? "?")"
+                                    )
+                                }
+                            } else {
+                                newUsername = accounts[uuid]
+                            }
+                            accountsLock.unlock()
+                        } catch {
+                            Log.error(
+                                message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get account in advance."
+                            )
+                        }
+                        return ["action": "switch_account", "min_level": minLevel, "max_level": maxLevel]
+                    } else if delay >= delayLogout {
+                        Log.warning(
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] Ignoring over Logout Delay, " +
+                                    "because no account is specified."
                         )
                     }
-                    return ["action": "switch_account", "min_level": minLevel, "max_level": maxLevel]
-                } else if delay >= delayLogout {
-                    Log.warning(
-                        message: "[AutoInstanceController] [\(name)] [\(uuid)] Ignoring over Logout Delay, " +
-                                 "because no account is specified."
+
+                    do {
+                        if let username = username {
+                            try Account.spin(mysql: mysql, username: username)
+                        }
+                        try Cooldown.encounter(
+                            mysql: mysql,
+                            account: account,
+                            deviceUUID: uuid,
+                            location: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon),
+                            encounterTime: encounterTime
                     )
-                }
-
-                do {
-                    if let username = username {
-                        try Account.spin(mysql: mysql, username: username)
+                    } catch {
+                        Log.error(message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to store cooldown.")
+                        stopsLock.lock()
+                        todayStops?.append(pokestop)
+                        stopsLock.unlock()
+                        return [String: Any]()
                     }
-                    try Cooldown.encounter(
-                        mysql: mysql,
-                        account: account,
-                        deviceUUID: uuid,
-                        location: Coord(lat: pokestop.pokestop.lat, lon: pokestop.pokestop.lon),
-                        encounterTime: encounterTime
-                  )
-                } catch {
-                    Log.error(message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to store cooldown.")
-                    stopsLock.lock()
-                    todayStops?.append(pokestop)
-                    stopsLock.unlock()
-                    return [String: Any]()
-                }
 
-                stopsLock.lock()
-                if todayStopsTries == nil {
-                    todayStopsTries = [:]
+                    stopsLock.lock()
+                    if todayStopsTries == nil {
+                        todayStopsTries = [:]
+                    }
+                    if let tries = todayStopsTries![pokestop] {
+                        todayStopsTries![pokestop] = (tries == UInt8.max ? 10 : tries + 1)
+                    } else {
+                        todayStopsTries![pokestop] = 1
+                    }
+                    if todayStops!.isEmpty {
+                        lastDoneCheck = Date()
+                        let ids = Array(Set(self.allStops!.map({ (stop) -> String in
+                            return stop.pokestop.id
+                        })))
+                        stopsLock.unlock()
+                        let newStops: [Pokestop]
+                        do {
+                            newStops = try Pokestop.getIn(mysql: mysql, ids: ids)
+                        } catch {
+                            Log.error(
+                            message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get today stops."
+                            )
+                            return [:]
+                        }
+
+                        stopsLock.lock()
+                        for stop in newStops {
+                            if questMode == .normal || questMode == .both {
+                                let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: false)
+                                let count = todayStopsTries![pokestopWithMode] ?? 0
+                                if stop.questType == nil && stop.enabled == true && count <= 5 {
+                                    todayStops!.append(pokestopWithMode)
+                                }
+                            }
+                            if questMode == .alternative || questMode == .both {
+                                let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: true)
+                                let count = todayStopsTries![pokestopWithMode] ?? 0
+                                if stop.alternativeQuestType == nil && stop.enabled == true && count <= 5 {
+                                    todayStops!.append(pokestopWithMode)
+                                }
+                            }
+                        }
+                        if todayStops!.isEmpty {
+                            stopsLock.unlock()
+                            Log.info(message: "[AutoInstanceController] [\(name)] [\(uuid)] Instance done")
+                            if doneDate == nil {
+                                doneDate = Date()
+                            }
+                            delegate?.instanceControllerDone(mysql: mysql, name: name)
+                        } else {
+                            stopsLock.unlock()
+                        }
+                    } else {
+                        stopsLock.unlock()
+                    }
+                    stopsLock.doWithLock { lastMode[username ?? uuid] = pokestop.alternative }
+                    WebHookRequestHandler.setArQuestTarget(device: uuid, timestamp: timestamp, isAr: pokestop.alternative)
+                    return ["action": "scan_quest", "deploy_egg": false,
+                            "lat": pokestop.pokestop.lat, "lon": pokestop.pokestop.lon,
+                            "delay": delay, "min_level": minLevel, "max_level": maxLevel,
+                            "quest_type": pokestop.alternative ? "ar" : "normal"]
                 }
-                if let tries = todayStopsTries![pokestop] {
-                    todayStopsTries![pokestop] = (tries == UInt8.max ? 10 : tries + 1)
-                } else {
-                    todayStopsTries![pokestop] = 1
+            }
+        }
+    }
+
+    func getStatus(mysql: MySQL, formatted: Bool) -> JSONConvertible?
+    {
+        switch type
+        {
+            case .quest:
+            {
+                bootstrappLock.lock()
+                if !bootstrappCellIDs.isEmpty
+                {
+                    let totalCount = bootstrappTotalCount
+                    let count = totalCount - bootstrappCellIDs.count
+                    bootstrappLock.unlock()
+
+                    let percentage: Double
+                    if totalCount > 0 {
+                        percentage = Double(count) / Double(totalCount) * 100
+                    } else {
+                        percentage = 100
+                    }
+                    if formatted {
+                        return "Bootstrapping \(count)/\(totalCount) (\(percentage.rounded(toStringWithDecimals: 1))%)"
+                    } else {
+                        return [
+                            "bootstrapping": [
+                                "current_count": count,
+                                "total_count": totalCount
+                            ]
+                        ]
+                    }
                 }
-                if todayStops!.isEmpty {
-                    lastDoneCheck = Date()
+                else
+                {
+                    bootstrappLock.unlock()
+                    stopsLock.lock()
                     let ids = Array(Set(self.allStops!.map({ (stop) -> String in
                         return stop.pokestop.id
                     })))
                     stopsLock.unlock()
-                    let newStops: [Pokestop]
-                    do {
-                        newStops = try Pokestop.getIn(mysql: mysql, ids: ids)
-                    } catch {
-                        Log.error(
-                           message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get today stops."
-                        )
-                        return [:]
-                    }
-
+                    let currentCountDb = (try? Pokestop.questCountIn(mysql: mysql, ids: ids, mode: questMode)) ?? 0
                     stopsLock.lock()
-                    for stop in newStops {
-                        if questMode == .normal || questMode == .both {
-                            let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: false)
-                            let count = todayStopsTries![pokestopWithMode] ?? 0
-                            if stop.questType == nil && stop.enabled == true && count <= 5 {
-                                todayStops!.append(pokestopWithMode)
-                            }
-                        }
-                        if questMode == .alternative || questMode == .both {
-                            let pokestopWithMode = PokestopWithMode(pokestop: stop, alternative: true)
-                            let count = todayStopsTries![pokestopWithMode] ?? 0
-                            if stop.alternativeQuestType == nil && stop.enabled == true && count <= 5 {
-                                todayStops!.append(pokestopWithMode)
-                            }
-                        }
-                    }
-                    if todayStops!.isEmpty {
-                        stopsLock.unlock()
-                        Log.info(message: "[AutoInstanceController] [\(name)] [\(uuid)] Instance done")
-                        if doneDate == nil {
-                            doneDate = Date()
-                        }
-                        delegate?.instanceControllerDone(mysql: mysql, name: name)
-                    } else {
-                        stopsLock.unlock()
-                    }
-                } else {
+                    let maxCount = self.allStops?.count ?? 0
+                    let currentCount = maxCount - (self.todayStops?.count ?? 0)
                     stopsLock.unlock()
-                }
-                stopsLock.doWithLock { lastMode[username ?? uuid] = pokestop.alternative }
-                WebHookRequestHandler.setArQuestTarget(device: uuid, timestamp: timestamp, isAr: pokestop.alternative)
-                return ["action": "scan_quest", "deploy_egg": false,
-                        "lat": pokestop.pokestop.lat, "lon": pokestop.pokestop.lon,
-                        "delay": delay, "min_level": minLevel, "max_level": maxLevel,
-                        "quest_type": pokestop.alternative ? "ar" : "normal"]
-            }
-        }
 
-    }
-
-    func getStatus(mysql: MySQL, formatted: Bool) -> JSONConvertible? {
-        switch type
-        {
-        case .quest:
-        {
-            bootstrappLock.lock()
-            if !bootstrappCellIDs.isEmpty
-            {
-                let totalCount = bootstrappTotalCount
-                let count = totalCount - bootstrappCellIDs.count
-                bootstrappLock.unlock()
-
-                let percentage: Double
-                if totalCount > 0 {
-                    percentage = Double(count) / Double(totalCount) * 100
-                } else {
-                    percentage = 100
-                }
-                if formatted {
-                    return "Bootstrapping \(count)/\(totalCount) (\(percentage.rounded(toStringWithDecimals: 1))%)"
-                } else {
-                    return [
-                        "bootstrapping": [
-                            "current_count": count,
-                            "total_count": totalCount
+                    let percentage: Double
+                    if maxCount > 0 {
+                        percentage = Double(currentCount) / Double(maxCount) * 100
+                    } else {
+                        percentage = 100
+                    }
+                    let percentageReal: Double
+                    if maxCount > 0 {
+                        percentageReal = Double(currentCountDb) / Double(maxCount) * 100
+                    } else {
+                        percentageReal = 100
+                    }
+                    if formatted {
+                        return "Status: \(currentCountDb)|\(currentCount)/\(maxCount) " +
+                            "(\(percentageReal.rounded(toStringWithDecimals: 1))|" +
+                            "\(percentage.rounded(toStringWithDecimals: 1))%)" +
+                            "\(doneDate != nil ? ", Completed: @\(doneDate!.toString("HH:mm") ?? "")" : "")"
+                    } else {
+                        return [
+                            "quests": [
+                                "done_since": doneDate?.timeIntervalSince1970 as Any,
+                                "current_count_db": currentCountDb,
+                                "current_count_internal": currentCount,
+                                "total_count": maxCount
+                            ]
                         ]
-                    ]
+                    }
                 }
             }
-            else
+            case .jumpyPokemon:
             {
-                bootstrappLock.unlock()
-                stopsLock.lock()
-                let ids = Array(Set(self.allStops!.map({ (stop) -> String in
-                    return stop.pokestop.id
-                })))
-                stopsLock.unlock()
-                let currentCountDb = (try? Pokestop.questCountIn(mysql: mysql, ids: ids, mode: questMode)) ?? 0
-                stopsLock.lock()
-                let maxCount = self.allStops?.count ?? 0
-                let currentCount = maxCount - (self.todayStops?.count ?? 0)
-                stopsLock.unlock()
+                let cnt = self.jumpyCoords.count/2
 
-                let percentage: Double
-                if maxCount > 0 {
-                    percentage = Double(currentCount) / Double(maxCount) * 100
+                if formatted
+                {
+                    return "Coord Count: \(cnt)"
                 } else {
-                    percentage = 100
-                }
-                let percentageReal: Double
-                if maxCount > 0 {
-                    percentageReal = Double(currentCountDb) / Double(maxCount) * 100
-                } else {
-                    percentageReal = 100
-                }
-                if formatted {
-                    return "Status: \(currentCountDb)|\(currentCount)/\(maxCount) " +
-                        "(\(percentageReal.rounded(toStringWithDecimals: 1))|" +
-                        "\(percentage.rounded(toStringWithDecimals: 1))%)" +
-                        "\(doneDate != nil ? ", Completed: @\(doneDate!.toString("HH:mm") ?? "")" : "")"
-                } else {
-                    return [
-                        "quests": [
-                            "done_since": doneDate?.timeIntervalSince1970 as Any,
-                            "current_count_db": currentCountDb,
-                            "current_count_internal": currentCount,
-                            "total_count": maxCount
-                        ]
-                    ]
+                    return ["coord_count": cnt]
                 }
             }
-        }
-        case .jumpyPokemon:
-        {
-            let cnt = self.jumpyCoords.count/2
-
-            if formatted
+            case .findyPokemon:
             {
-                return "Coord Count: \(cnt)"
-            } else {
-                return ["coord_count": cnt]
-            }
-        }
-        case .findyPokemon:
-        {
-            if formatted
-            {
-                return "Coord Count: \(self.findyCoords.count)"
-            }
-            else
-            {
-                return ["coord_count": self.findyCoords.count]
+                if formatted
+                {
+                    return "Coord Count: \(self.findyCoords.count)"
+                }
+                else
+                {
+                    return ["coord_count": self.findyCoords.count]
+                }
             }
         }
     }
 
-    func reload() {
+    func reload() 
+    {
         update()
     }
 
-    func stop() {
+    func stop()
+    {
         self.shouldExit = true
-        if questClearerQueue != nil {
+        if questClearerQueue != nil
+        {
             Threading.destroyQueue(questClearerQueue!)
         }
     }
 
-    func getAccount(mysql: MySQL, uuid: String) throws -> Account? {
+    func getAccount(mysql: MySQL, uuid: String) throws -> Account?
+    {
         return try getAccount(mysql: mysql, uuid: uuid, encounterTarget: nil)
     }
 
-    func getAccount(mysql: MySQL, uuid: String, encounterTarget: Coord?) throws -> Account? {
+    func getAccount(mysql: MySQL, uuid: String, encounterTarget: Coord?) throws -> Account?
+    {
         accountsLock.lock()
-        if let username = accounts[uuid] {
+        if let username = accounts[uuid]
+        {
             accounts[uuid] = nil
             accountsLock.unlock()
             return try Account.getWithUsername(username: username)
-        } else {
+        }
+        else
+        {
             accountsLock.unlock()
             return try Account.getNewAccount(
                 mysql: mysql,
@@ -961,7 +974,8 @@ class AutoInstanceController: InstanceControllerProto {
         }
     }
 
-    func accountValid(account: Account) -> Bool {
+    func accountValid(account: Account) -> Bool
+    {
         return
             account.level >= minLevel &&
             account.level <= maxLevel &&
@@ -969,7 +983,7 @@ class AutoInstanceController: InstanceControllerProto {
             account.hasSpinsLeft(spins: spinLimit)
     }
 
-   func initJumpyCoords() throws
+    func initJumpyCoords() throws
     {
         Log.debug(message: "initJumpyCoords() - Starting")
         guard let mysql = DBController.global.mysql else 
@@ -1361,4 +1375,5 @@ class AutoInstanceController: InstanceControllerProto {
         
         return false
     }
+}
 }
