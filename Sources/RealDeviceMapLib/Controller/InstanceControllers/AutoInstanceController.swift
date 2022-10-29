@@ -268,8 +268,7 @@ class AutoInstanceController: InstanceControllerProto
     {
         switch type 
         {
-            case .quest:
-            {
+            case .quest: 
                 stopsLock.lock()
                 self.allStops = []
                 for polygon in multiPolygon.polygons {
@@ -306,18 +305,13 @@ class AutoInstanceController: InstanceControllerProto
                         self.todayStops!.append(stop)
                     }
                 }
-                stopsLock.unlock()
-            }
-            case .findyPokemon:
-            {
+                stopsLock.unlock() 
+            case .findyPokemon: 
                 initFindyCoords()
-                AutoInstanceController.findyCache.set(id: self.name, value: 1)
-            }
-            case .jumpyPokemon:
-            {
+                AutoInstanceController.findyCache.set(id: self.name, value: 1) 
+            case .jumpyPokemon: 
                 initJumpyCoords()
-                AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
-            }
+                AutoInstanceController.jumpyCache.set(id: self.name, value: 1) 
         }
     }
 
@@ -325,8 +319,7 @@ class AutoInstanceController: InstanceControllerProto
     {
         switch type
         {
-            case .jumpyPokemon:
-            { 
+            case .jumpyPokemon: 
                 // don't give a crap about laptime, as by definition it is 1hr
                 lock.unlock()
 
@@ -385,12 +378,8 @@ class AutoInstanceController: InstanceControllerProto
 
                 Log.debug(message: "getTask() jumpy- ended")
 
-                return task
-
-                break
-            }
-            case .findyPokemon:
-            {
+                return task 
+            case .findyPokemon: 
                 // get route like for findy, specify fence and use tth = null
                 // with each gettask, just increment to next point in list
                 // requery the route every ???? min, set with cache above
@@ -460,11 +449,7 @@ class AutoInstanceController: InstanceControllerProto
                 Log.debug(message: "getTask() findy- ended")
 
                 return task
-
-                break
-            }
             case .quest:
-            {
                 bootstrappLock.lock()
                 if !bootstrappCellIDs.isEmpty {
 
@@ -833,9 +818,6 @@ class AutoInstanceController: InstanceControllerProto
                             "delay": delay, "min_level": minLevel, "max_level": maxLevel,
                             "quest_type": pokestop.alternative ? "ar" : "normal"]
                 }
-
-                break
-            }
         }
     }
 
@@ -844,7 +826,6 @@ class AutoInstanceController: InstanceControllerProto
         switch type
         {
             case .quest:
-            {
                 bootstrappLock.lock()
                 if !bootstrappCellIDs.isEmpty
                 {
@@ -911,11 +892,7 @@ class AutoInstanceController: InstanceControllerProto
                         ]
                     }
                 }
-
-                break
-            }
             case .jumpyPokemon:
-            {
                 let cnt = self.jumpyCoords.count/2
 
                 if formatted
@@ -926,11 +903,7 @@ class AutoInstanceController: InstanceControllerProto
                 {
                     return ["coord_count": cnt]
                 }
-
-                break
-            }
             case .findyPokemon:
-            {
                 if formatted
                 {
                     return "Coord Count: \(self.findyCoords.count)"
@@ -939,9 +912,6 @@ class AutoInstanceController: InstanceControllerProto
                 {
                     return ["coord_count": self.findyCoords.count]
                 }
-
-                break
-            }
         }
     }
 
