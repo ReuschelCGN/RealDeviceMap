@@ -460,6 +460,7 @@ class AutoInstanceController: InstanceControllerProto
                 return task
             }
             case .quest:
+            {
                 bootstrappLock.lock()
                 if !bootstrappCellIDs.isEmpty {
 
