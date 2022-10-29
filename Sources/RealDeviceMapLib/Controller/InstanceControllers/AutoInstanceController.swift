@@ -353,14 +353,14 @@ class AutoInstanceController: InstanceControllerProto
                 if jumpyCoords.indices.contains(newLoc)
                 {
                     AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
-                    currentJumpyCoord = (try? jumpyCoords[newLoc]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                    currentJumpyCoord = jumpyCoords[newLoc]
                 }
                 else
                 {
                     if jumpyCoords.indices.contains(0)
                     {
                         AutoInstanceController.currentDevicesMaxLocation[self.name] = 0
-                        currentJumpyCoord = (try? jumpyCoords[0]) ?? jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                        currentJumpyCoord = jumpyCoords[0]
                     }
                     else
                     {
