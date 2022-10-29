@@ -106,7 +106,7 @@ class AutoInstanceController: InstanceControllerProto
         self.isEvent = isEvent
         self.questMode = questMode
 
-        self.jumpyCoords = [jumpyCoord]()
+        self.jumpyCoords = [JumpyCoord]()
         self.findyCoords = [Coord]()
         self.deviceUuid = UUID().uuidString
         
@@ -342,7 +342,7 @@ class AutoInstanceController: InstanceControllerProto
 
                 Log.debug(message: "getTask() jumpy - Instance: \(self.name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(jumpyCoords.count / 2)")
                 
-                var currentJumpyCoord:jumpyCoord = jumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                var currentJumpyCoord:jumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
                 if jumpyCoords.indices.contains(newLoc) {
                     AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
                     currentJumpyCoord = jumpyCoords[newLoc]
@@ -938,7 +938,7 @@ class AutoInstanceController: InstanceControllerProto
         jumpyLock.lock()
         jumpyCoords.removeAll(keepingCapacity: true)
 
-        var tmpCoords: [jumpyCoord] = [jumpyCoord]()
+        var tmpCoords: [JumpyCoord] = [JumpyCoord]()
 
         // get min and max coords from the route coords list
         var minLat:Double = 90
@@ -989,7 +989,7 @@ class AutoInstanceController: InstanceControllerProto
             }
 
             if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) ) {
-                tmpCoords.append( jumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
+                tmpCoords.append( JumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
             }
 
             count += 1
