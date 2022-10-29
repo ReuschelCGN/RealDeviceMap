@@ -979,8 +979,6 @@ class AutoInstanceController: InstanceControllerProto
 
         jumpyLock.lock()
         jumpyCoords.removeAll(keepingCapacity: true)
-        
-        Log.debug(message: "[AutoInstanceController] initJumpyCoords() - got \(MultiPolygon.polygons.count) geofences")
 
         var tmpCoords: [jumpyCoord] = [jumpyCoord]()
 
