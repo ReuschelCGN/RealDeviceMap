@@ -386,6 +386,8 @@ class AutoInstanceController: InstanceControllerProto
                 Log.debug(message: "getTask() jumpy- ended")
 
                 return task
+
+                break
             }
             case .findyPokemon:
             {
@@ -458,6 +460,8 @@ class AutoInstanceController: InstanceControllerProto
                 Log.debug(message: "getTask() findy- ended")
 
                 return task
+
+                break
             }
             case .quest:
             {
@@ -829,6 +833,8 @@ class AutoInstanceController: InstanceControllerProto
                             "delay": delay, "min_level": minLevel, "max_level": maxLevel,
                             "quest_type": pokestop.alternative ? "ar" : "normal"]
                 }
+
+                break
             }
         }
     }
@@ -905,6 +911,8 @@ class AutoInstanceController: InstanceControllerProto
                         ]
                     }
                 }
+
+                break
             }
             case .jumpyPokemon:
             {
@@ -918,6 +926,8 @@ class AutoInstanceController: InstanceControllerProto
                 {
                     return ["coord_count": cnt]
                 }
+
+                break
             }
             case .findyPokemon:
             {
@@ -929,6 +939,8 @@ class AutoInstanceController: InstanceControllerProto
                 {
                     return ["coord_count": self.findyCoords.count]
                 }
+
+                break
             }
         }
     }
