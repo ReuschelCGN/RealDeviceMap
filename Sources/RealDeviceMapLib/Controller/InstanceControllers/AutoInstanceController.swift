@@ -74,6 +74,7 @@ class AutoInstanceController: InstanceControllerProto {
         var spawn_sec: UInt16
     }
     private let coords: [Coord]
+    private var lastCompletedTime: Date?
     var jumpyCoords: [jumpyCoord]
     var findyCoords: [Coord]
     let minTimeFromSpawn: UInt64 = 30
