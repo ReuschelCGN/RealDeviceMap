@@ -307,10 +307,10 @@ class AutoInstanceController: InstanceControllerProto
                 }
                 stopsLock.unlock() 
             case .findyPokemon: 
-                initFindyCoords()
+                try? initFindyCoords()
                 AutoInstanceController.findyCache.set(id: self.name, value: 1) 
             case .jumpyPokemon: 
-                initJumpyCoords()
+                try? initJumpyCoords()
                 AutoInstanceController.jumpyCache.set(id: self.name, value: 1) 
         }
     }
