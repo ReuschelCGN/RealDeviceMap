@@ -996,10 +996,10 @@ class AutoInstanceController: InstanceControllerProto
             {
                 for coord in polygon
                 {
-                    minLat = min(minLat, coord.latitude)
-                    maxLat = max(maxLat, coord.latitude)
-                    minLon = min(minLon, coord.longitude)
-                    maxLon = max(maxLon, coord.longitude)
+                    minLat = min(minLat, coord.lat)
+                    maxLat = max(maxLat, coord.lat)
+                    minLon = min(minLon, coord.lon)
+                    maxLon = max(maxLon, coord.lon)
                 }
             }
         

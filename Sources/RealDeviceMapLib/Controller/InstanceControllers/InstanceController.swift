@@ -174,7 +174,7 @@ public class InstanceController {
                                                                        minLevel: minLevel, maxLevel: maxLevel,
                                                                        accountGroup: accountGroup, isEvent: isEvent)
             }
-        case .pokemonIV, .autoQuest, .jumpyPokemon, .findyPokemon, .jumpyPokemon, .findyPokemon:
+        case .pokemonIV, .autoQuest, .jumpyPokemon, .findyPokemon:
             var areaArray = [[Coord]]()
             if instance.data["area"] as? [[Coord]] != nil {
                 areaArray = instance.data["area"] as? [[Coord]] ?? [[Coord]]()
