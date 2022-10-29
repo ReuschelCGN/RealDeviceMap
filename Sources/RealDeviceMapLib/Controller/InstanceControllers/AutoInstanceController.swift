@@ -74,7 +74,6 @@ class AutoInstanceController: InstanceControllerProto
         var coord: Coord
         var spawn_sec: UInt16
     }
-    private let coords: [Coord]
     private var lastCompletedTime: Date?
     private var lastLastCompletedTime: Date?
     var jumpyCoords: [jumpyCoord]
@@ -978,7 +977,7 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if coords.count > 0
+        if MultiPolygon.count > 0
         {
             jumpyLock.lock()
             jumpyCoords.removeAll(keepingCapacity: true)
@@ -1083,7 +1082,7 @@ class AutoInstanceController: InstanceControllerProto
             return
         }
 
-        if coords.count > 0
+        if MultiPolygon.count > 0
         {
             findyLock.lock()
             findyCoords.removeAll(keepingCapacity: true)
