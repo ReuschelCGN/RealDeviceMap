@@ -342,7 +342,7 @@ class AutoInstanceController: InstanceControllerProto
 
                 Log.debug(message: "getTask() jumpy - Instance: \(self.name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(jumpyCoords.count / 2)")
                 
-                var currentJumpyCoord:jumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                var currentJumpyCoord:JumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
                 if jumpyCoords.indices.contains(newLoc) {
                     AutoInstanceController.currentDevicesMaxLocation[self.name] = newLoc
                     currentJumpyCoord = jumpyCoords[newLoc]
@@ -1003,7 +1003,7 @@ class AutoInstanceController: InstanceControllerProto
         // take lazy man's approach, probably not ideal
         // add elements to end, so 3600-7199 sec
         for coord in tmpCoords {
-            jumpyCoords.append(jumpyCoord( id: coord.id, coord: coord.coord, spawn_sec: coord.spawn_sec + 3600 ))
+            jumpyCoords.append(JumpyCoord( id: coord.id, coord: coord.coord, spawn_sec: coord.spawn_sec + 3600 ))
         }
 
         // did the list shrink from last query?
