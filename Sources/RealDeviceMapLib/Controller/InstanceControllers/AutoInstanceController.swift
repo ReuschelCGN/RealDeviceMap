@@ -80,6 +80,8 @@ class AutoInstanceController: InstanceControllerProto {
     let minTimeFromSpawn: UInt64 = 30
     let minTimeLeft : UInt64 = 1200
     var jumpySpot: Int = 0
+    private var lastLastCompletedTime: Date?
+    private var lastCompletedTime: Date?
     static var currentDevicesMaxLocation = Dictionary<String,Int>()
     static var locationLock = Threading.Lock()
     let deviceUuid: String
