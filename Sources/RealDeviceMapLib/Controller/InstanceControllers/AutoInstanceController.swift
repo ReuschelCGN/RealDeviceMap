@@ -267,7 +267,7 @@ class AutoInstanceController: InstanceControllerProto
     private func update() 
     {
         switch type 
-            {
+        {
             case .quest:
             {
                 stopsLock.lock()
@@ -318,6 +318,7 @@ class AutoInstanceController: InstanceControllerProto
                 initJumpyCoords()
                 AutoInstanceController.jumpyCache.set(id: self.name, value: 1)
             }
+        }
     }
 
     func getTask(mysql: MySQL, uuid: String, username: String?, account: Account?, timestamp: UInt64) -> [String: Any]
