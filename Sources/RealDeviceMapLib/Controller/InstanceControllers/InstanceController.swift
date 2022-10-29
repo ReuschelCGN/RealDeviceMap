@@ -222,7 +222,7 @@ public class InstanceController {
                     accountGroup: accountGroup, isEvent: isEvent
                 )
             }
-            else if instance.type = .jumpyPokemon
+            else if instance.type == .jumpyPokemon
             {
                 let spinLimit = instance.data["spin_limit"] as? Int ?? 1000
                 let delayLogout = instance.data["delay_logout"] as? Int ?? 900
@@ -237,7 +237,7 @@ public class InstanceController {
                     accountGroup: accountGroup, isEvent: isEvent, questMode: questMode
                 )
             }
-            else if instance.type = .findyPokemon
+            else if instance.type == .findyPokemon
             {
                 let spinLimit = instance.data["spin_limit"] as? Int ?? 1000
                 let delayLogout = instance.data["delay_logout"] as? Int ?? 900
