@@ -16,7 +16,8 @@ import S2Geometry
 
 class AutoInstanceController: InstanceControllerProto
 {
-    enum AutoType {
+    enum AutoType
+    {
         case quest
         case jumpyPokemon
         case findyPokemon
@@ -75,13 +76,12 @@ class AutoInstanceController: InstanceControllerProto
     }
     private let coords: [Coord]
     private var lastCompletedTime: Date?
+    private var lastLastCompletedTime: Date?
     var jumpyCoords: [jumpyCoord]
     var findyCoords: [Coord]
     let minTimeFromSpawn: UInt64 = 30
     let minTimeLeft : UInt64 = 1200
     var jumpySpot: Int = 0
-    private var lastLastCompletedTime: Date?
-    private var lastCompletedTime: Date?
     static var currentDevicesMaxLocation = Dictionary<String,Int>()
     static var locationLock = Threading.Lock()
     let deviceUuid: String
@@ -324,7 +324,7 @@ class AutoInstanceController: InstanceControllerProto
     {
         switch type
         {
-            case .jumpyPokemon
+            case .jumpyPokemon:
             { 
                 // don't give a crap about laptime, as by definition it is 1hr
                 lock.unlock()
@@ -386,7 +386,7 @@ class AutoInstanceController: InstanceControllerProto
 
                 return task
             }
-            case .findyPokemon
+            case .findyPokemon:
             {
                 // get route like for findy, specify fence and use tth = null
                 // with each gettask, just increment to next point in list
@@ -911,7 +911,9 @@ class AutoInstanceController: InstanceControllerProto
                 if formatted
                 {
                     return "Coord Count: \(cnt)"
-                } else {
+                }
+                else
+                {
                     return ["coord_count": cnt]
                 }
             }
@@ -1375,5 +1377,4 @@ class AutoInstanceController: InstanceControllerProto
         
         return false
     }
-}
 }
