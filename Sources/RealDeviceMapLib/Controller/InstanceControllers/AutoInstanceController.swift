@@ -825,10 +825,13 @@ class AutoInstanceController: InstanceControllerProto {
     }
 
     func getStatus(mysql: MySQL, formatted: Bool) -> JSONConvertible? {
-        switch type {
+        switch type
+        {
         case .quest:
+        {
             bootstrappLock.lock()
-            if !bootstrappCellIDs.isEmpty {
+            if !bootstrappCellIDs.isEmpty
+            {
                 let totalCount = bootstrappTotalCount
                 let count = totalCount - bootstrappCellIDs.count
                 bootstrappLock.unlock()
@@ -849,7 +852,9 @@ class AutoInstanceController: InstanceControllerProto {
                         ]
                     ]
                 }
-            } else {
+            }
+            else
+            {
                 bootstrappLock.unlock()
                 stopsLock.lock()
                 let ids = Array(Set(self.allStops!.map({ (stop) -> String in
