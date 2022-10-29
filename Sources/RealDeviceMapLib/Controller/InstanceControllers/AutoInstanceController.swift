@@ -996,10 +996,10 @@ class AutoInstanceController: InstanceControllerProto
             {
                 for coord in polygon
                 {
-                    minLat = min(minLat, coord.lat)
-                    maxLat = max(maxLat, coord.lat)
-                    minLon = min(minLon, coord.lon)
-                    maxLon = max(maxLon, coord.lon)
+                    minLat = min(minLat, coord.latitude)
+                    maxLat = max(maxLat, coord.latitude)
+                    minLon = min(minLon, coord.longitude)
+                    maxLon = max(maxLon, coord.longitude)
                 }
             }
         
@@ -1088,13 +1088,9 @@ class AutoInstanceController: InstanceControllerProto
             var tmpCoords = [Coord]()
 
             // get min and max coords from the route coords list
-            var minLat:Double = 90
-            var maxLat:Double = -90
-            var minLon:Double = 180
-            var maxLon:Double = -180
-            for polygon in multiPolygon.polygons
+            for polygon in multiPolygon.coordinates
             {
-                for coord in polygon.coordinates
+                for coord in polygon
                 {
                     minLat = min(minLat, coord.latitude)
                     maxLat = max(maxLat, coord.latitude)
@@ -1102,7 +1098,7 @@ class AutoInstanceController: InstanceControllerProto
                     maxLon = max(maxLon, coord.longitude)
                 }
             }
-        
+            
             // assemble the sql
             var sql = "select lat, lon from spawnpoint where " 
             sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
