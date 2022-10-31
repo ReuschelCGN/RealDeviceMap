@@ -81,15 +81,15 @@ class AutoInstanceController: InstanceControllerProto
     let minTimeFromSpawn: UInt64 = 30
     let minTimeLeft : UInt64 = 1200
     var jumpySpot: Int = 0
-    static var currentDevicesMaxLocation = Dictionary<String,Int>()
-    static var locationLock = Threading.Lock()
+    var currentDevicesMaxLocation = ThreadSafeDictionary<String,Int>()
+    var locationLock = Threading.Lock()
     let deviceUuid: String
     var jumpyLock = Threading.Lock()
     var findyLock = Threading.Lock()
     var pauseJumping: Bool = false
     var firstRun: Bool = true
-    public static var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
-    public static var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
+    var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
+    var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
 
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, timezoneOffset: Int,
          minLevel: UInt8, maxLevel: UInt8, spinLimit: Int, delayLogout: Int,
