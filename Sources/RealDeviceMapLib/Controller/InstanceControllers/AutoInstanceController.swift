@@ -81,7 +81,7 @@ class AutoInstanceController: InstanceControllerProto
     let minTimeFromSpawn: UInt64 = 30
     let minTimeLeft : UInt64 = 1200
     var jumpySpot: Int = 0
-    var currentDevicesMaxLocation = ThreadSafeDictionary<String,Int>()
+    var currentDevicesMaxLocation = Dictionary<String,Int>()
     //var locationLock = Threading.Lock()
     let deviceUuid: String
     var jumpyLock = Threading.Lock()
