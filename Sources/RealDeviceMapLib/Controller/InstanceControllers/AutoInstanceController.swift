@@ -81,7 +81,7 @@ class AutoInstanceController: InstanceControllerProto
     let minTimeFromSpawn: UInt64 = 30
     let minTimeLeft : UInt64 = 1200
     var jumpySpot: Int = 0
-    var currentDevicesMaxLocation = Dictionary<String,Int>()
+    var currentDevicesMaxLocation: Int = 0
     //var locationLock = Threading.Lock()
     let deviceUuid: String
     var jumpyLock = Threading.Lock()
@@ -111,7 +111,7 @@ class AutoInstanceController: InstanceControllerProto
         self.deviceUuid = UUID().uuidString
 
         Log.debug(message: "AutoInstance - Init")
-        
+
         update()
         
         if type == .jumpyPokemon || type == .findyPokemon {
@@ -332,12 +332,7 @@ class AutoInstanceController: InstanceControllerProto
                 jumpyLock.lock()
                 
                 // increment location
-                var loc:Int = 0
-                //locationLock.lock()
-                let keyExists = currentDevicesMaxLocation[self.name] != nil
-                if keyExists {
-                    loc = currentDevicesMaxLocation[self.name]!
-                }
+                var loc:Int = currentDevicesMaxLocation
 
                 let newLoc = determineNextJumpyLocation(CurTime: curSecInHour, curLocation: loc)
                 firstRun = false
@@ -346,17 +341,17 @@ class AutoInstanceController: InstanceControllerProto
                 
                 var currentJumpyCoord:JumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
                 if jumpyCoords.indices.contains(newLoc) {
-                    currentDevicesMaxLocation[self.name] = newLoc
+                    currentDevicesMaxLocation = newLoc
                     currentJumpyCoord = jumpyCoords[newLoc]
                 } else {
                     if jumpyCoords.indices.contains(0)
                     {
-                        currentDevicesMaxLocation[self.name] = 0
+                        currentDevicesMaxLocation = 0
                         currentJumpyCoord = jumpyCoords[0]
                     }
                     else
                     {
-                        currentDevicesMaxLocation[self.name] = -1
+                        currentDevicesMaxLocation = -1
                     }
                 }
                 //locationLock.unlock()
@@ -388,14 +383,7 @@ class AutoInstanceController: InstanceControllerProto
                 }
 
                 // increment location
-                var loc:Int = 0
-                //locationLock.lock()
-                let keyExists = currentDevicesMaxLocation[self.name] != nil
-                if keyExists {
-                    loc = currentDevicesMaxLocation[self.name]!
-                } else {
-                    loc = 0
-                }
+                var loc:Int = currentDevicesMaxLocation
 
                 var newLoc = loc + 1
                 if newLoc >= findyCoords.count {
@@ -404,17 +392,17 @@ class AutoInstanceController: InstanceControllerProto
 
                 Log.debug(message: "getTask() findy - oldLoc=\(loc) & newLoc=\(newLoc)/\(findyCoords.count)")
 
-                currentDevicesMaxLocation[self.name] = newLoc
+                currentDevicesMaxLocation = newLoc
                 
                 var currentFindyCoord:Coord = Coord(lat: 0.0,lon: 0.0)
                 if findyCoords.indices.contains(newLoc) {
                     currentFindyCoord = findyCoords[newLoc]
                 } else {
                     if findyCoords.indices.contains(0) {
-                        currentDevicesMaxLocation[self.name] = 0
+                        currentDevicesMaxLocation= 0
                         currentFindyCoord = findyCoords[newLoc]
                     } else {
-                        currentDevicesMaxLocation[self.name] = -1
+                        currentDevicesMaxLocation = -1
                     }
                 }
 
@@ -1010,12 +998,10 @@ class AutoInstanceController: InstanceControllerProto
         }
 
         // did the list shrink from last query?
-        //locationLock.lock()
-        let oldJumpyCoord = currentDevicesMaxLocation[self.name] ?? 0
+        let oldJumpyCoord = currentDevicesMaxLocation
         if (oldJumpyCoord >= jumpyCoords.count) {
-            currentDevicesMaxLocation[self.name] = jumpyCoords.count - 1
+            currentDevicesMaxLocation = 0
         }
-        //locationLock.unlock()
 
         jumpyLock.unlock()
     }
@@ -1089,9 +1075,7 @@ class AutoInstanceController: InstanceControllerProto
         // sort the array, so 0-3600 sec in order
         findyCoords = tmpCoords
 
-        //locationLock.lock()
-        currentDevicesMaxLocation[self.name] = 0
-        //locationLock.unlock()
+        currentDevicesMaxLocation = 0
 
         findyLock.unlock()
     }
