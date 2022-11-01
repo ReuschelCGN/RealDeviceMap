@@ -399,7 +399,7 @@ class AutoInstanceController: InstanceControllerProto
                     currentFindyCoord = findyCoords[newLoc]
                 } else {
                     if findyCoords.indices.contains(0) {
-                        currentDevicesMaxLocation= 0
+                        currentDevicesMaxLocation = 0
                         currentFindyCoord = findyCoords[newLoc]
                     } else {
                         currentDevicesMaxLocation = -1
