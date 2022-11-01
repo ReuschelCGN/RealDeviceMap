@@ -299,10 +299,10 @@ public class ConfigLoader {
         case accUseRwForPokes = "USE_RW_FOR_POKES"
         case questRetryLimit = "QUEST_RETRY_LIMIT"
         case spinDistance = "SPIN_DISTANCE"
-        case minSpawnTimer: "JUMPY_MIN_SPAWN_TIMER"
-        case timeAfterSpawn: "JUMPY_TIME_AFTER_SPAWN"
-        case sleepTime: "JUMPY_SLEEP_TIME"
-        case bufferTime: "JUMPY_BUFFER_TIME"
+        case minSpawnTimer = "JUMPY_MIN_SPAWN_TIMER"
+        case timeAfterSpawn = "JUMPY_TIME_AFTER_SPAWN"
+        case sleepTime = "JUMPY_SLEEP_TIME"
+        case bufferTime = "JUMPY_BUFFER_TIME"
     }
 
 }
