@@ -946,6 +946,8 @@ class AutoInstanceController: InstanceControllerProto
         sql.append(" AND despawnSeconds is not null")
         sql.append(" order by despawnSeconds")
 
+        Log.debug(message: "\(sql)")
+
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
 
