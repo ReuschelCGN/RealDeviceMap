@@ -63,6 +63,8 @@ public class Instance: Hashable {
         self.type = type
         self.data = data
         self.count = count
+
+        Log.debug(message: "Instance - Init")
     }
 
     public func create(mysql: MySQL?=nil) throws {
