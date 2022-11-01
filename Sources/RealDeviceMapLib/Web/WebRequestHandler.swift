@@ -2455,7 +2455,7 @@ public class WebRequestHandler {
                 return data
             }
             newCoords = coords
-        } else if type != nil && type! == .autoQuest || type! == .pokemonIV || type! == .leveling {
+        } else if type != nil && type! == .autoQuest || type! == .pokemonIV || type! == .leveling || type! == .jumpyPokemon || type! == .findyPokemon {
             var coordArray = [[Coord]]()
             let areaRows = area.components(separatedBy: "\n")
             var currentIndex = 0

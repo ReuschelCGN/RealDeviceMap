@@ -72,7 +72,7 @@ class AutoInstanceController: InstanceControllerProto
     {
         var id: UInt64
         var coord: Coord
-        var spawn_sec: UInt16
+        var spawnSeconds: UInt16
     }
     private var lastCompletedTime: Date?
     private var lastLastCompletedTime: Date?
@@ -264,8 +264,12 @@ class AutoInstanceController: InstanceControllerProto
 
     private func update() {
         switch type {
-            case .jumpyPokemon, .findyPokemon:
-                break
+            case .jumpyPokemon:
+                try? initJumpyCoords()
+                jumpyCache.set(id: self.name, value: 1)
+            case .findyPokemon:
+                try? initFindyCoords()
+                findyCache.set(id: self.name, value: 1)
             case .quest: 
                 stopsLock.lock()
                 self.allStops = []
@@ -330,7 +334,7 @@ class AutoInstanceController: InstanceControllerProto
 
                 Log.debug(message: "getTask() jumpy - Instance: \(self.name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(jumpyCoords.count / 2)")
                 
-                var currentJumpyCoord:JumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawn_sec:0)
+                var currentJumpyCoord:JumpyCoord = JumpyCoord(id:1, coord:Coord(lat: 0.0,lon: 0.0), spawnSeconds:0)
                 if jumpyCoords.indices.contains(newLoc) {
                     currentDevicesMaxLocation = newLoc
                     currentJumpyCoord = jumpyCoords[newLoc]
@@ -933,12 +937,12 @@ class AutoInstanceController: InstanceControllerProto
         }
     
         // assemble the sql
-        var sql = "select id, despawn_sec, lat, lon from spawnpoint where " 
+        var sql = "select id, despawnSeconds, lat, lon from spawnpoint where " 
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawn_sec is not null")
-        sql.append(" order by despawn_sec")
+        sql.append(" AND despawnSeconds is not null")
+        sql.append(" order by despawnSeconds")
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
@@ -952,20 +956,20 @@ class AutoInstanceController: InstanceControllerProto
         let results = mysqlStmt.results()
         while let result = results.next() { 
             let id = result[0] as! UInt64
-            let despawn_sec = result[1] as! UInt16
+            let despawnSeconds = result[1] as! UInt16
             let lat = result[2] as! Double
             let lon = result[3] as! Double
 
-            var spawn_sec:Int = Int(despawn_sec)
+            var spawnSeconds:Int = Int(despawnSeconds)
 
-            spawn_sec -= 1800 // add 30min so when spawn should show, rdm not track 60min spawns
+            spawnSeconds -= 1800 // add 30min so when spawn should show, rdm not track 60min spawns
 
-            if (spawn_sec < 0) {
-                spawn_sec += 3600
+            if (spawnSeconds < 0) {
+                spawnSeconds += 3600
             }
 
             if ( inPolygon(lat: lat, lon: lon, multiPolygon: multiPolygon) ) {
-                tmpCoords.append( JumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawn_sec: UInt16(spawn_sec) ) )
+                tmpCoords.append( JumpyCoord( id: id, coord: Coord(lat: lat,lon: lon), spawnSeconds: UInt16(spawnSeconds) ) )
             }
 
             count += 1
@@ -980,7 +984,7 @@ class AutoInstanceController: InstanceControllerProto
         // take lazy man's approach, probably not ideal
         // add elements to end, so 3600-7199 sec
         for coord in tmpCoords {
-            jumpyCoords.append(JumpyCoord( id: coord.id, coord: coord.coord, spawn_sec: coord.spawn_sec + 3600 ))
+            jumpyCoords.append(JumpyCoord( id: coord.id, coord: coord.coord, spawnSeconds: coord.spawnSeconds + 3600 ))
         }
 
         // did the list shrink from last query?
@@ -1026,7 +1030,7 @@ class AutoInstanceController: InstanceControllerProto
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawn_sec is null")
+        sql.append(" AND despawnSeconds is null")
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
@@ -1131,9 +1135,9 @@ class AutoInstanceController: InstanceControllerProto
         var nextCoord = jumpyCoords[loc]
         jumpyLock.unlock()
 
-        var spawn_sec:UInt16 = nextCoord.spawn_sec
+        var spawnSeconds:UInt16 = nextCoord.spawnSeconds
 
-        var (minTime, maxTime) = offsetsForSpawnTimer(time: spawn_sec)
+        var (minTime, maxTime) = offsetsForSpawnTimer(time: spawnSeconds)
         Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() - minTime=\(minTime) & curTime=\(curTime) & maxTime=\(maxTime)")
 
         let topOfHour = (minTime < 0)
@@ -1166,9 +1170,9 @@ class AutoInstanceController: InstanceControllerProto
                 }
 
                 nextCoord = jumpyCoords[idx]
-                spawn_sec = nextCoord.spawn_sec
+                spawnSeconds = nextCoord.spawnSeconds
                     
-                let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawn_sec)
+                let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawnSeconds)
 
                 if  (curTime >= mnTime) && (curTime <= mnTime + 120) {
                     Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b2 - mnTime=\(mnTime) & curTime=\(curTime) & & mxTime=\(mxTime)")
@@ -1186,9 +1190,9 @@ class AutoInstanceController: InstanceControllerProto
                     }
 
                     nextCoord = jumpyCoords[idx]
-                    spawn_sec = nextCoord.spawn_sec
+                    spawnSeconds = nextCoord.spawnSeconds
                         
-                    let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawn_sec)
+                    let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawnSeconds)
 
                     if  (curTime >= mnTime + 30) && (curTime < mnTime + 120) {
                         Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() b3 - iterate backwards solution=\(found)")
@@ -1219,9 +1223,9 @@ class AutoInstanceController: InstanceControllerProto
                 }
                 
                 nextCoord = jumpyCoords[idx]
-                spawn_sec = nextCoord.spawn_sec
+                spawnSeconds = nextCoord.spawnSeconds
                     
-                let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawn_sec)
+                let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawnSeconds)
 
                 if  (curTime >= mnTime+30) && (curTime <= mnTime + 120) {
                     Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d2 - iterate forward solution=\(found)")
@@ -1240,9 +1244,9 @@ class AutoInstanceController: InstanceControllerProto
                     }
                 
                     nextCoord = jumpyCoords[idx]
-                    spawn_sec = nextCoord.spawn_sec
+                    spawnSeconds = nextCoord.spawnSeconds
                         
-                    let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawn_sec)
+                    let (mnTime, mxTime) = offsetsForSpawnTimer(time: spawnSeconds)
 
                     if   (curTime >= mnTime+30) && (curTime <= mnTime + 120) {
                         Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() d4 - iterate backwards solution=\(found)")
@@ -1255,7 +1259,7 @@ class AutoInstanceController: InstanceControllerProto
             }
         } else {
             Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() e1 - criteria fail with curTime=\(curTime) & curLocation=\(curLocation)" +
-                      "& despawn=\(spawn_sec)")
+                      "& despawn=\(spawnSeconds)")
             // go back to zero and iterate somewhere useful
             loc=0
         }
