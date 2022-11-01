@@ -929,7 +929,7 @@ class AutoInstanceController: InstanceControllerProto
             for coords in polygon.coordinates {
                 for coord in coords {
 
-                    log.Debug(message: "\(coord)")
+                    Log.ebug(message: "\(coord)")
                     minLat = min(minLat, coord.latitude)
                     maxLat = max(maxLat, coord.latitude)
                     minLon = min(minLon, coord.longitude)
