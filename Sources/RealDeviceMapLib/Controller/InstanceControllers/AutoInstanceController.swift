@@ -1121,6 +1121,11 @@ class AutoInstanceController: InstanceControllerProto
             loc = 0
         }
         
+        if !jumpyCoords.indices.contains(loc)
+        {
+            loc = 0
+        }
+        
         var nextCoord = jumpyCoords[loc]
         var spawn_sec:UInt16 = nextCoord.spawn_sec
 
