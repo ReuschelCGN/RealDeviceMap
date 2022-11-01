@@ -89,7 +89,7 @@ class AutoInstanceController: InstanceControllerProto
     public let timeAfterSpawn: UInt16 = ConfigLoader.global.getConfig(type: .timeAfterSpawn)
     public let minTimer: UInt16 = ConfigLoader.global.getConfig(type: .minSpawnTimer)
     public let sleepTimeJumpy: UInt16 = ConfigLoader.global.getConfig(type: .sleepTimeJumpy)
-    public let bufferTimeDistance: UInt16 = ConfigLoader.global.getConfig(type: .bufferTimeDistance)
+    public let bufferTimeDistance: UInt16 = ConfigLoader.global.getConfig(type: .bufferTime)
 
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, timezoneOffset: Int,
          minLevel: UInt8, maxLevel: UInt8, spinLimit: Int, delayLogout: Int,
@@ -1151,7 +1151,7 @@ class AutoInstanceController: InstanceControllerProto
             Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a1 - curtime between min and max, moving standard 1 forward")
 
             // test if we are getting too close to the mintime
-            if  (Double(curTime) - Double(minTime) < bufferTimeDistance) {
+            if  Double(curTime) - Double(minTime) < Double(bufferTimeDistance) {
                 Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a2 - sleeping 10sec as too close to minTime, in normal time")
                 Threading.sleep(seconds: sleepTimeJumpy)
             }
