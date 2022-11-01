@@ -928,6 +928,8 @@ class AutoInstanceController: InstanceControllerProto
         for polygon in multiPolygon.polygons {
             for coords in polygon.coordinates {
                 for coord in coords {
+
+                    log.debug(message: "\(coord)")
                     minLat = min(minLat, coord.latitude)
                     maxLat = max(maxLat, coord.latitude)
                     minLon = min(minLon, coord.longitude)
