@@ -934,12 +934,12 @@ class AutoInstanceController: InstanceControllerProto
         }
 
         // assemble the sql
-        var sql = "select id, despawnSeconds, lat, lon from spawnpoint where " 
+        var sql = "select id, despawn_sec, lat, lon from spawnpoint where " 
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawnSeconds is not null")
-        sql.append(" order by despawnSeconds")
+        sql.append(" AND despawn_sec is not null")
+        sql.append(" order by despawn_sec")
 
         Log.debug(message: "\(sql)")
 
@@ -1026,7 +1026,7 @@ class AutoInstanceController: InstanceControllerProto
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawnSeconds is null")
+        sql.append(" AND despawn_sec is null")
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
