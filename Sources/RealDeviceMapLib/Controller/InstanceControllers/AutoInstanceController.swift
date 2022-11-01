@@ -353,8 +353,6 @@ class AutoInstanceController: InstanceControllerProto
                 
                 if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
 
-                Log.debug(message: "getTask() jumpy- ended")
-
                 return task 
             case .findyPokemon: 
                 // get route like for findy, specify fence and use tth = null
@@ -1083,7 +1081,7 @@ class AutoInstanceController: InstanceControllerProto
     }
 
     func offsetsForSpawnTimer(time: UInt16) -> (UInt16, UInt16) {
-        let maxTime:UInt16 = 1800 - minTimer
+        let maxTime:UInt16 = time + 1800 - minTimer
         let minTime:UInt16 = time + timeAfterSpawn
 
         return (minTime, maxTime)
