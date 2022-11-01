@@ -316,9 +316,6 @@ class AutoInstanceController: InstanceControllerProto
     func getTask(mysql: MySQL, uuid: String, username: String?, account: Account?, timestamp: UInt64) -> [String: Any] {
         switch type {
             case .jumpyPokemon: 
-                // don't give a crap about laptime, as by definition it is 1hr
-                lock.unlock()
-
                 let hit = jumpyCache.get(id: self.name) ?? 0
                 if hit == 0 {
                     try? initJumpyCoords()
@@ -371,9 +368,6 @@ class AutoInstanceController: InstanceControllerProto
                 // requery the route every ???? min, set with cache above
                 // run until data length == 0, then output a message to tell user done
                 // since we actually care about laptime, use that variable
-
-                lock.unlock()
-
                 findyLock.lock()
 
                 let hit = findyCache.get(id: self.name) ?? 0
@@ -1121,11 +1115,14 @@ class AutoInstanceController: InstanceControllerProto
             loc = 0
         }
         
+        jumpyLock.lock()
         if !jumpyCoords.indices.contains(loc)
         {
             loc = 0
         }       
         var nextCoord = jumpyCoords[loc]
+        jumpyLock.unlock()
+
         var spawn_sec:UInt16 = nextCoord.spawn_sec
 
         var (minTime, maxTime) = offsetsForSpawnTimer(time: spawn_sec)
