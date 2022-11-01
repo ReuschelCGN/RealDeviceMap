@@ -926,7 +926,7 @@ class AutoInstanceController: InstanceControllerProto
         var minLon:Double = 180
         var maxLon:Double = -180
         for polygon in multiPolygon.polygons {
-            let bounds = BoundingBox(from: multiPolygon.outerRing.coordinates)
+            let bounds = BoundingBox(from: polygon.outerRing.coordinates)
             minLat = min(minLat, min(bounds.southWest.latitude, bounds.southEast.latitude))
             maxLat = max(maxLat, min(bounds.northEast.latitude, bounds.northWest.latitude))
             minLon = min(minLon, min(bounds.southWest.longitude, bounds.northWest.longitude))
@@ -1014,7 +1014,7 @@ class AutoInstanceController: InstanceControllerProto
         var minLon:Double = 180
         var maxLon:Double = -180
         for polygon in multiPolygon.polygons {
-            let bounds = BoundingBox(from: multiPolygon.outerRing.coordinates)
+            let bounds = BoundingBox(from: polygon.outerRing.coordinates)
             minLat = min(minLat, min(bounds.southWest.latitude, bounds.southEast.latitude))
             maxLat = max(maxLat, min(bounds.northEast.latitude, bounds.northWest.latitude))
             minLon = min(minLon, min(bounds.southWest.longitude, bounds.northWest.longitude))
