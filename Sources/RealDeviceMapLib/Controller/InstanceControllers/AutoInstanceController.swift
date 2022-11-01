@@ -330,9 +330,6 @@ class AutoInstanceController: InstanceControllerProto
                 let (_,min,sec) = secondsToHoursMinutesSeconds()
                 let curSecInHour = min*60 + sec
                 jumpyLock.lock()
-                
-                // increment location
-                var loc:Int = currentDevicesMaxLocation
 
                 let newLoc = determineNextJumpyLocation(CurTime: curSecInHour, curLocation: loc)
                 firstRun = false
@@ -381,10 +378,7 @@ class AutoInstanceController: InstanceControllerProto
                     try? initFindyCoords()
                     findyCache.set(id: self.name, value: 1)
                 }
-
-                // increment location
-                var loc:Int = currentDevicesMaxLocation
-
+                
                 var newLoc = loc + 1
                 if newLoc >= findyCoords.count {
                     newLoc = 0
