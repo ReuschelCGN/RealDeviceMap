@@ -23,8 +23,7 @@ public class ConfigLoader {
         "USE_RW_FOR_QUEST", "USE_RW_FOR_RAID", "NO_GENERATE_IMAGES", "NO_PVP", "NO_IV_WEATHER_CLEARING",
         "NO_CELL_POKEMON", "SAVE_SPAWNPOINT_LASTSEEN", "NO_MEMORY_CACHE", "NO_BACKUP", "NO_REQUIRE_ACCOUNT",
         "SCAN_LURE_ENCOUNTER", "QUEST_RETRY_LIMIT", "SPIN_DISTANCE", "ALLOW_AR_QUESTS", "STOP_ALL_BOOTSTRAPPING",
-        "USE_RW_FOR_POKES", "NO_DB_CLEARER", "NO_DB_CLEARER_INCIDENT", "JUMPY_TIME_AFTER_SPAWN", "JUMPY_MIN_SPAWN_TIMER",
-        "JUMPY_SLEEP_TIME", "JUMPY_BUFFER_TIME"
+        "USE_RW_FOR_POKES", "NO_DB_CLEARER", "NO_DB_CLEARER_INCIDENT"
     ]
 
     private init() {
@@ -155,14 +154,6 @@ public class ConfigLoader {
             ?? defaultConfig.application.quest.questRetryLimit.value()!
         case .spinDistance: return localConfig.application.quest.spinDistance.value()
             ?? defaultConfig.application.quest.spinDistance.value()!
-        case .timeAfterSpawn: return localConfig.application.scanModes.jumpyPokemon.timeAfterSpawn.value()
-            ?? defaultConfig.application.scanModes.jumpyPokemon.timeAfterSpawn.value()!
-        case .minSpawnTimer: return localConfig.application.scanModes.jumpyPokemon.minSpawnTimer.value()
-            ?? defaultConfig.application.scanModes.jumpyPokemon.minSpawnTimer.value()!
-        case .sleepTimeJumpy: return localConfig.application.scanModes.jumpyPokemon.sleepTime.value()
-            ?? defaultConfig.application.scanModes.jumpyPokemon.sleepTime.value()!
-        case .bufferTime: return localConfig.application.scanModes.jumpyPokemon.bufferTime.value()
-            ?? defaultConfig.application.scanModes.jumpyPokemon.bufferTime.value()!
         }
     }
 
@@ -221,10 +212,6 @@ public class ConfigLoader {
         case .accUseRwForPokes: return false as! T // USE_RW_FOR_POKES
         case .questRetryLimit: return castValue(value: value) // QUEST_RETRY_LIMIT
         case .spinDistance: return castValue(value: value) // SPIN_DISTANCE
-        case .minSpawnTimer: return false as! T
-        case .timeAfterSpawn: return false as! T
-        case .sleepTimeJumpy: return false as! T
-        case .bufferTime: return false as! T
         }
     }
 
@@ -299,10 +286,6 @@ public class ConfigLoader {
         case accUseRwForPokes = "USE_RW_FOR_POKES"
         case questRetryLimit = "QUEST_RETRY_LIMIT"
         case spinDistance = "SPIN_DISTANCE"
-        case minSpawnTimer = "JUMPY_MIN_SPAWN_TIMER"
-        case timeAfterSpawn = "JUMPY_TIME_AFTER_SPAWN"
-        case sleepTimeJumpy = "JUMPY_SLEEP_TIME"
-        case bufferTime = "JUMPY_BUFFER_TIME"
     }
 
 }
