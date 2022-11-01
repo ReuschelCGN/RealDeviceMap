@@ -156,13 +156,13 @@ public class ConfigLoader {
         case .spinDistance: return localConfig.application.quest.spinDistance.value()
             ?? defaultConfig.application.quest.spinDistance.value()!
         case .timeAfterSpawn: return localConfig.application.scanModes.jumpyPokemon.timeAfterSpawn.value()
-            ?? defaultConfig.application.jumpyPokemon.timeAfterSpawn.value()!
+            ?? defaultConfig.application.scanModes.jumpyPokemon.timeAfterSpawn.value()!
         case .minSpawnTimer: return localConfig.application.scanModes.jumpyPokemon.minSpawnTimer.value()
-            ?? defaultConfig.application.jumpyPokemon.minSpawnTimer.value()!
+            ?? defaultConfig.application.scanModes.jumpyPokemon.minSpawnTimer.value()!
         case .sleepTimeJumpy: return localConfig.application.scanModes.jumpyPokemon.sleepTime.value()
-            ?? defaultConfig.application.jumpyPokemon.sleepTime.value()!
+            ?? defaultConfig.application.scanModes.jumpyPokemon.sleepTime.value()!
         case .bufferTime: return localConfig.application.scanModes.jumpyPokemon.bufferTime.value()
-            ?? defaultConfig.application.jumpyPokemon.bufferTime.value()!
+            ?? defaultConfig.application.scanModes.jumpyPokemon.bufferTime.value()!
         }
     }
 
