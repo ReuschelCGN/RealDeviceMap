@@ -110,12 +110,14 @@ class AutoInstanceController: InstanceControllerProto
         self.findyCoords = [Coord]()
         self.deviceUuid = UUID().uuidString
 
+        Log.debug(message: "AutoInstance - Init")
+        
         update()
         
         if type == .jumpyPokemon || type == .findyPokemon {
             return
         }
-        
+
         if !skipBootstrap {
             try? bootstrap()
         } else {
