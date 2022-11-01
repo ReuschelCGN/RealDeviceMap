@@ -927,10 +927,10 @@ class AutoInstanceController: InstanceControllerProto
         var maxLon:Double = -180
         for polygon in multiPolygon.polygons {
             let bounds = BoundingBox(from: polygon.outerRing.coordinates)
-            minLat = min(minLat, min(bounds!.southWest.latitude, bounds.southEast.latitude))
-            maxLat = max(maxLat, min(bounds!.northEast.latitude, bounds.northWest.latitude))
-            minLon = min(minLon, min(bounds!.southWest.longitude, bounds.northWest.longitude))
-            maxLon = max(maxLon, min(bounds!.northEast.longitude, bounds.southEast.longitude))
+            minLat = min(minLat, bounds!.southWest.latitude)
+            maxLat = max(maxLat, bounds!.northEast.latitude)
+            minLon = min(minLon, bounds!.southWest.longitude)
+            maxLon = max(maxLon, bounds!.northEast.longitude)
         }
 
         // assemble the sql
@@ -1015,10 +1015,10 @@ class AutoInstanceController: InstanceControllerProto
         var maxLon:Double = -180
         for polygon in multiPolygon.polygons {
             let bounds = BoundingBox(from: polygon.outerRing.coordinates)
-            minLat = min(minLat, min(bounds!.southWest.latitude, bounds.southEast.latitude))
-            maxLat = max(maxLat, min(bounds!.northEast.latitude, bounds.northWest.latitude))
-            minLon = min(minLon, min(bounds!.southWest.longitude, bounds.northWest.longitude))
-            maxLon = max(maxLon, min(bounds!.northEast.longitude, bounds.southEast.longitude))
+            minLat = min(minLat, bounds!.southWest.latitude)
+            maxLat = max(maxLat, bounds!.northEast.latitude)
+            minLon = min(minLon, bounds!.southWest.longitude)
+            maxLon = max(maxLon, bounds!.northEast.longitude)
         }
 
         // assemble the sql
