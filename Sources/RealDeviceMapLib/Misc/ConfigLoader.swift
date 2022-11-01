@@ -223,7 +223,7 @@ public class ConfigLoader {
         case .spinDistance: return castValue(value: value) // SPIN_DISTANCE
         case .minSpawnTimer: return false as! T
         case .timeAfterSpawn: return false as! T
-        case .sleepTime: return false as! T
+        case .sleepTimeJumpy: return false as! T
         case .bufferTime: return false as! T
         }
     }
