@@ -1124,8 +1124,7 @@ class AutoInstanceController: InstanceControllerProto
         if !jumpyCoords.indices.contains(loc)
         {
             loc = 0
-        }
-        
+        }       
         var nextCoord = jumpyCoords[loc]
         var spawn_sec:UInt16 = nextCoord.spawn_sec
 
@@ -1156,6 +1155,11 @@ class AutoInstanceController: InstanceControllerProto
             var found: Bool = false
             let start = loc
             for idx in start..<cntArray {
+                if !jumpyCoords.indices.contains(loc)
+                {
+                    return 0
+                }
+
                 nextCoord = jumpyCoords[idx]
                 spawn_sec = nextCoord.spawn_sec
                     
@@ -1171,6 +1175,11 @@ class AutoInstanceController: InstanceControllerProto
             
             if !found {
                 for idx in (0..<start).reversed() {
+                    if !jumpyCoords.indices.contains(loc)
+                    {
+                        return 0
+                    }
+
                     nextCoord = jumpyCoords[idx]
                     spawn_sec = nextCoord.spawn_sec
                         
@@ -1199,6 +1208,11 @@ class AutoInstanceController: InstanceControllerProto
             var found: Bool = false
             let start = loc
             for idx in start..<cntArray {
+                if !jumpyCoords.indices.contains(loc)
+                {
+                    return 0
+                }
+                
                 nextCoord = jumpyCoords[idx]
                 spawn_sec = nextCoord.spawn_sec
                     
@@ -1215,6 +1229,11 @@ class AutoInstanceController: InstanceControllerProto
             
             if !found {
                 for idx in (0..<start).reversed() {
+                    if !jumpyCoords.indices.contains(loc)
+                    {
+                        return 0
+                    }
+                
                     nextCoord = jumpyCoords[idx]
                     spawn_sec = nextCoord.spawn_sec
                         
