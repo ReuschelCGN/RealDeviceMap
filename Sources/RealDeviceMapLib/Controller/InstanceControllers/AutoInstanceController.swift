@@ -78,11 +78,7 @@ class AutoInstanceController: InstanceControllerProto
     private var lastLastCompletedTime: Date?
     var jumpyCoords: [JumpyCoord]
     var findyCoords: [Coord]
-    let minTimeFromSpawn: UInt64 = 30
-    let minTimeLeft : UInt64 = 1200
-    var jumpySpot: Int = 0
     var currentDevicesMaxLocation: Int = 0
-    //var locationLock = Threading.Lock()
     let deviceUuid: String
     var jumpyLock = Threading.Lock()
     var findyLock = Threading.Lock()
@@ -90,6 +86,10 @@ class AutoInstanceController: InstanceControllerProto
     var firstRun: Bool = true
     var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
     var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
+    public let timeAfterSpawn: Int = ConfigLoader.global.getConfig(type: .timeAfterSpawn as Int)
+    public let minTimer: Int = ConfigLoader.global.getConfig(type: .minSpawnTimer as Int)
+    public let sleepTimeJumpy: Int = ConfigLoader.global.getConfig(type: .sleepTimeJumpy as Int)
+    public let bufferTimeDistance: Int = ConfigLoader.global.getConfig(type: .bufferTimeDistance as Int)
 
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, timezoneOffset: Int,
          minLevel: UInt8, maxLevel: UInt8, spinLimit: Int, delayLogout: Int,
@@ -1083,8 +1083,8 @@ class AutoInstanceController: InstanceControllerProto
     }
 
     func offsetsForSpawnTimer(time: UInt16) -> (UInt16, UInt16) {
-        let maxTime:UInt16 = time + 300
-        let minTime:UInt16 = time + 15
+        let maxTime:UInt16 = 1800 - minTimer
+        let minTime:UInt16 = time + timeAfterSpawn
 
         return (minTime, maxTime)
     }
@@ -1151,9 +1151,9 @@ class AutoInstanceController: InstanceControllerProto
             Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a1 - curtime between min and max, moving standard 1 forward")
 
             // test if we are getting too close to the mintime
-            if  (Double(curTime) - Double(minTime) < 30) {
+            if  (Double(curTime) - Double(minTime) < bufferTimeDistance) {
                 Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a2 - sleeping 10sec as too close to minTime, in normal time")
-                Threading.sleep(seconds: 10)
+                Threading.sleep(seconds: sleepTimeJumpy)
             }
         } else if curTime < minTime {
             // spawn is past time to visit, need to find a good one to jump to
