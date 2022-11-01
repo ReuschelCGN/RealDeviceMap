@@ -86,9 +86,9 @@ class AutoInstanceController: InstanceControllerProto
     var firstRun: Bool = true
     var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
     var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
-    let timeAfterSpawn: UInt16 = 10
+    let timeAfterSpawn: UInt16 = 20
     let minTimer: UInt16 = 1500
-    let sleepTimeJumpy: UInt16 = 5
+    let sleepTimeJumpy: UInt16 = 10
     let bufferTimeDistance: UInt16 = 20
 
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, timezoneOffset: Int,
