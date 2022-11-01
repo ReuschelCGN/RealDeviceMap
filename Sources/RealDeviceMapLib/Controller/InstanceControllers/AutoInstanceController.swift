@@ -264,6 +264,8 @@ class AutoInstanceController: InstanceControllerProto
 
     private func update() {
         switch type {
+            case .jumpyPokemon, .findyPokemon:
+                break
             case .quest: 
                 stopsLock.lock()
                 self.allStops = []
