@@ -86,10 +86,10 @@ class AutoInstanceController: InstanceControllerProto
     var firstRun: Bool = true
     var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
     var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
-    public let timeAfterSpawn: UInt16 = ConfigLoader.global.getConfig(type: .timeAfterSpawn as UInt16)
-    public let minTimer: UInt16 = ConfigLoader.global.getConfig(type: .minSpawnTimer as UInt16)
-    public let sleepTimeJumpy: UInt16 = ConfigLoader.global.getConfig(type: .sleepTimeJumpy as UInt16)
-    public let bufferTimeDistance: UInt16 = ConfigLoader.global.getConfig(type: .bufferTimeDistance as UInt16)
+    public let timeAfterSpawn: UInt16 = ConfigLoader.global.getConfig(type: .timeAfterSpawn)
+    public let minTimer: UInt16 = ConfigLoader.global.getConfig(type: .minSpawnTimer)
+    public let sleepTimeJumpy: UInt16 = ConfigLoader.global.getConfig(type: .sleepTimeJumpy)
+    public let bufferTimeDistance: UInt16 = ConfigLoader.global.getConfig(type: .bufferTimeDistance)
 
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, timezoneOffset: Int,
          minLevel: UInt8, maxLevel: UInt8, spinLimit: Int, delayLogout: Int,

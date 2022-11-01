@@ -301,7 +301,7 @@ public class ConfigLoader {
         case spinDistance = "SPIN_DISTANCE"
         case minSpawnTimer = "JUMPY_MIN_SPAWN_TIMER"
         case timeAfterSpawn = "JUMPY_TIME_AFTER_SPAWN"
-        case sleepTime = "JUMPY_SLEEP_TIME"
+        case sleepTimeJumpy = "JUMPY_SLEEP_TIME"
         case bufferTime = "JUMPY_BUFFER_TIME"
     }
 
