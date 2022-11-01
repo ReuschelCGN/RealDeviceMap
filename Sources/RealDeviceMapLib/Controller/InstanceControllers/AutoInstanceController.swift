@@ -920,24 +920,13 @@ class AutoInstanceController: InstanceControllerProto
 
         var tmpCoords: [JumpyCoord] = [JumpyCoord]()
 
-        // get min and max coords from the route coords list
-        var minLat:Double = 90
-        var maxLat:Double = -90
-        var minLon:Double = 180
-        var maxLon:Double = -180
-        for polygon in multiPolygon.polygons {
-            for coords in polygon.coordinates {
-                for coord in coords {
+        // get min and max coords from the polygon
+        let bounds = BoundingBox(from: multiPolygon.outerRing.coordinates)
+        let minLat:Double = min(bounds.southWest.latitude, bounds.southEast.latitude)
+        let maxLat:Double = min(bounds.northEast.latitude, bounds.northWest.latitude)
+        let minLon:Double = min(bounds.southWest.longitude, bounds.northWest.longitude,)
+        let maxLon:Double = min(bounds.northEast.longitude, bounds.southEast.longitude)
 
-                    Log.debug(message: "\(coord)")
-                    minLat = min(minLat, coord.latitude)
-                    maxLat = max(maxLat, coord.latitude)
-                    minLon = min(minLon, coord.longitude)
-                    maxLon = max(maxLon, coord.longitude)
-                }
-            }
-        }
-    
         // assemble the sql
         var sql = "select id, despawnSeconds, lat, lon from spawnpoint where " 
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
