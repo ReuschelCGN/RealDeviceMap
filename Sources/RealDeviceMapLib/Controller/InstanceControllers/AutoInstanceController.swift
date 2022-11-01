@@ -110,13 +110,11 @@ class AutoInstanceController: InstanceControllerProto
         self.findyCoords = [Coord]()
         self.deviceUuid = UUID().uuidString
 
-        Log.debug(message: "AutoInstance - Init")
-
-        update()
-        
         if type == .jumpyPokemon || type == .findyPokemon {
             return
         }
+
+        update()
 
         if !skipBootstrap {
             try? bootstrap()
@@ -304,12 +302,6 @@ class AutoInstanceController: InstanceControllerProto
                     }
                 }
                 stopsLock.unlock() 
-            case .findyPokemon: 
-                try? initFindyCoords()
-                findyCache.set(id: self.name, value: 1) 
-            case .jumpyPokemon: 
-                try? initJumpyCoords()
-                jumpyCache.set(id: self.name, value: 1) 
         }
     }
 
@@ -1099,6 +1091,14 @@ class AutoInstanceController: InstanceControllerProto
         let cntArray = jumpyCoords.count
         let cntCoords = jumpyCoords.count / 2
 
+        if cntArray <= 0
+        {
+            try? initJumpyCoords()
+            jumpyCache.set(id: self.name, value: 1) 
+
+            return 0
+        }
+
         var curTime = CurTime
         var loc = curLocation
         
@@ -1118,7 +1118,15 @@ class AutoInstanceController: InstanceControllerProto
         jumpyLock.lock()
         if !jumpyCoords.indices.contains(loc)
         {
-            loc = 0
+            if jumpyCoords.indices.contains(0)
+            {
+                loc = 0
+            }
+            else
+            {
+                //wtf
+                Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() - no zero location, wtf...")
+            }
         }       
         var nextCoord = jumpyCoords[loc]
         jumpyLock.unlock()
