@@ -159,9 +159,9 @@ public class ConfigLoader {
             ?? defaultConfig.application.jumpyPokemon.timeAfterSpawn.value()!
         case .minSpawnTimer: return localConfig.application.scanModes.jumpyPokemon.minSpawnTimer.value()
             ?? defaultConfig.application.jumpyPokemon.minSpawnTimer.value()!
-        case .sleepTime: return localConfig.application.scanModes.jumpyPokemon.sleepTime.value()
+        case .sleepTimeJumpy: return localConfig.application.scanModes.jumpyPokemon.sleepTime.value()
             ?? defaultConfig.application.jumpyPokemon.sleepTime.value()!
-        case .sleepTimeJumpy: return localConfig.application.scanModes.jumpyPokemon.bufferTime.value()
+        case .bufferTime: return localConfig.application.scanModes.jumpyPokemon.bufferTime.value()
             ?? defaultConfig.application.jumpyPokemon.bufferTime.value()!
         }
     }
