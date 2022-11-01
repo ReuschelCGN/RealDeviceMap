@@ -1153,7 +1153,7 @@ class AutoInstanceController: InstanceControllerProto
             // test if we are getting too close to the mintime
             if  Double(curTime) - Double(minTime) < Double(bufferTimeDistance) {
                 Log.debug(message: "[AutoInstanceController] determineNextJumpyLocation() a2 - sleeping 10sec as too close to minTime, in normal time")
-                Threading.sleep(seconds: sleepTimeJumpy)
+                Threading.sleep(seconds: Double(sleepTimeJumpy))
             }
         } else if curTime < minTime {
             // spawn is past time to visit, need to find a good one to jump to
