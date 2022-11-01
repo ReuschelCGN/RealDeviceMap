@@ -24,7 +24,7 @@ public class ConfigLoader {
         "NO_CELL_POKEMON", "SAVE_SPAWNPOINT_LASTSEEN", "NO_MEMORY_CACHE", "NO_BACKUP", "NO_REQUIRE_ACCOUNT",
         "SCAN_LURE_ENCOUNTER", "QUEST_RETRY_LIMIT", "SPIN_DISTANCE", "ALLOW_AR_QUESTS", "STOP_ALL_BOOTSTRAPPING",
         "USE_RW_FOR_POKES", "NO_DB_CLEARER", "NO_DB_CLEARER_INCIDENT", "JUMPY_TIME_AFTER_SPAWN", "JUMPY_MIN_SPAWN_TIMER",
-        "JUMPY_SLEEP_TIME, "JUMPY_BUFFER_TIME"
+        "JUMPY_SLEEP_TIME", "JUMPY_BUFFER_TIME"
     ]
 
     private init() {
@@ -299,10 +299,10 @@ public class ConfigLoader {
         case accUseRwForPokes = "USE_RW_FOR_POKES"
         case questRetryLimit = "QUEST_RETRY_LIMIT"
         case spinDistance = "SPIN_DISTANCE"
-        case .minSpawnTimer: "JUMPY_MIN_SPAWN_TIMER"
-        case .timeAfterSpawn: "JUMPY_TIME_AFTER_SPAWN"
-        case .sleepTime: "JUMPY_SLEEP_TIME"
-        case .bufferTime: "JUMPY_BUFFER_TIME"
+        case minSpawnTimer: "JUMPY_MIN_SPAWN_TIMER"
+        case timeAfterSpawn: "JUMPY_TIME_AFTER_SPAWN"
+        case sleepTime: "JUMPY_SLEEP_TIME"
+        case bufferTime: "JUMPY_BUFFER_TIME"
     }
 
 }
