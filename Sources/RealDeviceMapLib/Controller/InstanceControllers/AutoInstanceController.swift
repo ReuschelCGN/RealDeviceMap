@@ -857,13 +857,6 @@ class AutoInstanceController: InstanceControllerProto
                 if let lastLast = lastLastCompletedTime, let last = lastCompletedTime
                 {
                     let time = Int(last.timeIntervalSince(lastLast))
-                    if formatted
-                    {
-                        return "Round Time: \(time)s"
-                    }
-                    else {
-                        return ["round_time": time]
-                    }
                 }
 
                 if formatted {
