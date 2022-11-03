@@ -853,8 +853,8 @@ class AutoInstanceController: InstanceControllerProto
                 } else {
                     return ["coord_count": cnt]
                 }
-            case .findyPokemon:            
-                if let lastLast = lastLastCompletedTime, let last = lastCompletedTime {
+            case .findyPokemon:    
+                if let lastLast = lastLastCompletedTime, let last = lastCompletedTime
                 {
                     let time = Int(last!.timeIntervalSince(lastLast!))
 
