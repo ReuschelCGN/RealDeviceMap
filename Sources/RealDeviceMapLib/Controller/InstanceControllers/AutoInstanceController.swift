@@ -85,7 +85,7 @@ class AutoInstanceController: InstanceControllerProto
     var pauseJumping: Bool = false
     var firstRun: Bool = true
     var jumpyCache: MemoryCache<Int> = MemoryCache(interval:240, keepTime:3600, extendTtlOnHit:false)
-    var findyCache: MemoryCache<Int> = MemoryCache(interval:60, keepTime:600, extendTtlOnHit:false)
+    var findyCache: MemoryCache<Int> = MemoryCache(interval:30, keepTime:300, extendTtlOnHit:false)
     let timeAfterSpawn: UInt16 = 20
     let minTimer: UInt16 = 1500
     let sleepTimeJumpy: UInt16 = 10
