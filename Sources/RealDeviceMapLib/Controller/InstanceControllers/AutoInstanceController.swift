@@ -856,7 +856,7 @@ class AutoInstanceController: InstanceControllerProto
             case .findyPokemon:            
                 let last = lastCompletedTime
                 let time = Int(last.timeIntervalSince(lastLast))
-
+                
                 if formatted {
                     return "Coord Count: \(self.findyCoords.count)\nRound Time: \(time)s"
                 } else {
