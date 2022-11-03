@@ -1026,7 +1026,7 @@ class AutoInstanceController: InstanceControllerProto
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawn_sec is null limit 20000")
+        sql.append(" AND despawn_sec is null order by lat limit 20000")
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
