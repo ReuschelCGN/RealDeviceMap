@@ -7,6 +7,6 @@ It also includes a basic proof of concept Instance and Device Manager.
 
 ## Feature Requests
 
-[Feature Requests](https://github.com/RealDeviceMap/RealDeviceMap/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) 
+[Feature Requests](https://github.com/RealDeviceMap/RealDeviceMap/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
 
 Questions? Ask as in [Discord](https://discord.gg/q2aXaGP)
