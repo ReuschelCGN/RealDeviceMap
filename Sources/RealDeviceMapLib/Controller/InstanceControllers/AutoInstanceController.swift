@@ -102,6 +102,7 @@ class AutoInstanceController: InstanceControllerProto {
     var currentTthRawPointsCount: Int = 0
     var lastMaxClusterSize: Int = 0
     var firstRun: Bool = true
+    var tthWithKojiWorks = true
     var tthClusterVisits:Int = 0
     var pokemonCache: MemoryCache<Int>? = nil   // cache to determine if we need to pull data from db for auto pokemon mode, see autoRequeryFrequency
     var tthCache: MemoryCache<Int>? = nil       // cache to determine if we need to pull data from db for tth pokemon mode, see tthRequeryFrequency
@@ -1153,8 +1154,13 @@ class AutoInstanceController: InstanceControllerProto {
                 AutoPokemonCoord(id: coord.id, coord: coord.coord, spawnSeconds: coord.spawnSeconds + 3600 ))
         }
 
-        // did the list shrink from last query?
+        // test if we have zero points
+        if pokemonCoords.count == 0
+        {
+            pokemonCoords.append( AutoPokemonCoord(id: 1, coord: Coord(lat: defaultLatitude, lon: defaultLongitude), spawnSeconds: 1800 ))
+        }
 
+        // did the list shrink from last query?
         let oldCoord = currentDevicesMaxLocation
         if oldCoord >= pokemonCoords.count {
             currentDevicesMaxLocation = 0
@@ -1199,10 +1205,26 @@ class AutoInstanceController: InstanceControllerProto {
 
         // assemble the sql
         var sql = "SELECT lat, lon FROM spawnpoint WHERE "
-        sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
+        sql.append(" (lat>" + String(minLat) + " AND lon >" + String(minLon) + ") ")
         sql.append(" AND ")
-        sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawn_sec is null")
+        sql.append(" (lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ") ")
+        sql.append(" AND despawn_sec is null ")
+
+        // add in some logic to make unclustered work a bit better
+        // think of it like bacteria colonies growing in petri dish as how it will act
+        if (!tthClusteringUsesKoji && firstRun) || !tthWithKojiWorks
+        {
+            // this is first run without koji, whether intended or due to failed talking with koji
+            // we will take shotgun approach to the data
+            sql.append(" AND order by RAND() ")
+        }
+        else if !tthClusteringUsesKoji
+        {
+            // add some random number to points last seen as we do not want clustered spawnspots to be individual route
+            // we want to visit random shit on route, not the last seen ones one after another
+            sql.append(" AND order by (last_seen + RAND() * 100 *" + String(tthRequeryFrequency) + ") DESC")
+        }
+        
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
@@ -1233,9 +1255,16 @@ class AutoInstanceController: InstanceControllerProto {
         Log.debug(message:
             "[AutoInstanceController] initTthCoords() - got \(tmpCoords.count) points in geofence with null tth")
 
+        // test if we ran out of coords
         if tmpCoords.count == 0 {
             Log.debug(message:
                 "[AutoInstanceController] initTthCoords - got ZERO points in min/max rectangle with null tth, you should switch to another mode")
+
+            // put one point on the route
+            tmpCoords.append( Coord(lat: defaultLatitude, lon: defaultLongitude))
+
+            // set clustering to false, as possible but why with one coord
+            tthClusteringUsesKoji = false
         }
 
         Log.debug(message:"[AutoInstanceController] initTthCoords() - UsingKoji = \(tthClusteringUsesKoji) &  firstRun=\(firstRun)")
@@ -1299,6 +1328,7 @@ class AutoInstanceController: InstanceControllerProto {
         else 
         {                
             // something went wrong with koji, fallback to normal
+            tthWithKojiWorks = false
             Log.error(message: "[AutoInstanceController] getClusteredCoords() - Unable to get data from Koji, falling back to unclustered tth data")
             tthClusteringUsesKoji = false
             return dataPoints

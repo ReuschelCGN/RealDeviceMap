@@ -120,7 +120,7 @@
             "clusterUsingKoji": false,
             "clusteringRadius": 70,
             "deviceTimeout": 300,
-            "hopTime": "3.00"
+            "hopTime": "0.0"
         }
     },
     "koji": 

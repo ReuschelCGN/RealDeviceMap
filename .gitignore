@@ -22,3 +22,4 @@ backups/
 .gitsha
 tmp1.png
 tmp2.png
+/pr.txt
