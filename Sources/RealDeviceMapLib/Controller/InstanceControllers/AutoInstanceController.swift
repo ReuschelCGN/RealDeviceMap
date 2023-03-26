@@ -15,6 +15,7 @@ import Turf
 import S2Geometry
 
 class AutoInstanceController: InstanceControllerProto {
+    
     enum AutoType {
         case quest
         case pokemon
@@ -65,30 +66,47 @@ class AutoInstanceController: InstanceControllerProto {
     public let skipBootstrap: Bool = ConfigLoader.global.getConfig(type: .stopAllBootstrapping)
     public let limit = UInt8(exactly: ConfigLoader.global.getConfig(type: .questRetryLimit) as Int)!
     public let spinDistance = Double(ConfigLoader.global.getConfig(type: .spinDistance) as Int)
+    
+    var tthRequeryFrequency: Int = ConfigLoader.global.getConfig(type: .tthRequeryFrequency)
+    var tthClusteringUsesKoji: Bool = ConfigLoader.global.getConfig(type: .tthClusterUsingKoji)
+    var tthClusteringRadius: UInt16 = UInt16(ConfigLoader.global.getConfig(type: .tthClusteringRadius) as Int)
+    var tthHopTime: Double = Double(ConfigLoader.global.getConfig(type: .tthHopTime) as String)!
+    var tthDeviceTimeout: UInt16 = UInt16(ConfigLoader.global.getConfig(type: .tthDeviceTimeout) as Int)
+    
+    var autoUseLastSeenTime: Int = ConfigLoader.global.getConfig(type: .autoPokemonUseLastSeenTime)
+    var autoRequeryFrequency: Int = ConfigLoader.global.getConfig(type: .autoPokemonRequeryFrequency)
+    var autoMinSpawnTime: UInt16 = UInt16(ConfigLoader.global.getConfig(type: .autoPokemonMinSpawnTime) as Int)
+    var autoBufferTime: UInt16 = UInt16(ConfigLoader.global.getConfig(type: .autoPokemonBufferTime) as Int)
+    var autoSleepInterval: UInt16 = UInt16(ConfigLoader.global.getConfig(type: .autoPokemonSleepInterval) as Int)
+    
+    var defaultLongitude: Double = Double(ConfigLoader.global.getConfig(type: .autoPokemonDefaultLongitude) as String)!
+    var defaultLatitude: Double = Double(ConfigLoader.global.getConfig(type: .autoPokemonDefaultLatitude) as String)!
 
     struct AutoPokemonCoord {
         var id: UInt64
         var coord: Coord
         var spawnSeconds: UInt16
     }
+    
     private var lastCompletedTime: Date?
     private var lastLastCompletedTime: Date?
     var pokemonCoords: [AutoPokemonCoord]
     var tthCoords: [Coord]
     var currentDevicesMaxLocation: Int = 0
     let deviceUuid: String
-    var pokemonLock = Threading.Lock()
+    var autoPokemonLock = Threading.Lock()
     var tthLock = Threading.Lock()
-    var lastCountUnknown: Int = 0
-    var pauseAutoPokemon: Bool = false
+    var lastTthCountUnknown: Int = 0
+    var tthCluseringTime: Double = 0.0
+    var lastTthRawPointsCount: Int = 0
+    var currentTthRawPointsCount: Int = 0
+    var lastMaxClusterSize: Int = 0
     var firstRun: Bool = true
-    var pokemonCache: MemoryCache<Int> = MemoryCache(interval: 240, keepTime: 3600, extendTtlOnHit: false)
-    var tthCache: MemoryCache<Int> = MemoryCache(interval: 30, keepTime: 300, extendTtlOnHit: false)
-    let timeAfterSpawn: UInt16 = 20
-    let minTimer: UInt16 = 1500
-    let sleepTimeAutoPokemon: UInt16 = 10
-    let bufferTimeDistance: UInt16 = 20
-
+    var tthClusterVisits:Int = 0
+    var pokemonCache: MemoryCache<Int>? = nil   // cache to determine if we need to pull data from db for auto pokemon mode, see autoRequeryFrequency
+    var tthCache: MemoryCache<Int>? = nil       // cache to determine if we need to pull data from db for tth pokemon mode, see tthRequeryFrequency
+    var tthDevices: MemoryCache<Int>? = nil     // cache to track active devices on tth finding mode, see tthDeviceTimeout
+    
     init(name: String, multiPolygon: MultiPolygon, type: AutoType, minLevel: UInt8, maxLevel: UInt8,
          spinLimit: Int = 1000, delayLogout: Int = 900, timezoneOffset: Int = 0, questMode: QuestMode = .normal,
          accountGroup: String?, isEvent: Bool) {
@@ -108,10 +126,64 @@ class AutoInstanceController: InstanceControllerProto {
         self.tthCoords = [Coord]()
         self.deviceUuid = UUID().uuidString
 
-        if type == .pokemon || type == .tth {
+        if type == .pokemon
+        {
+            // sensibility checks for user values for mode config
+            autoRequeryFrequency = clamp(autoRequeryFrequency, minValue: 600, maxValue: 86400)
+            autoMinSpawnTime = clamp(autoMinSpawnTime, minValue: 600, maxValue: 1740)
+            autoBufferTime = clamp(autoBufferTime, minValue: 10, maxValue: 120)
+            autoSleepInterval = clamp(autoSleepInterval, minValue: 5, maxValue: 60)
+            defaultLongitude = clamp(defaultLongitude, minValue: -89.99999999, maxValue: 89.99999999)
+            defaultLatitude = clamp(defaultLatitude, minValue: -179.99999999, maxValue: 179.99999999)
+
+            if autoUseLastSeenTime == 0
+            {
+                // as set to zero, assume user meant to use all data
+                autoUseLastSeenTime = -1
+            }
+            else if autoUseLastSeenTime > 0
+            {
+                // user set positive value, no sense to refresh more than every 10min
+                // max value of 1wk in seconds
+                autoUseLastSeenTime = clamp(autoUseLastSeenTime,minValue: 600, maxValue: 604800)
+            }
+            else
+            {
+                // negative, so going to use all data, just clamp for future usage
+                autoUseLastSeenTime = clamp(autoUseLastSeenTime,minValue: -100, maxValue: -1)
+            }
+
+            // setup cache(s) we need for this mode, leave the others as nil
+            pokemonCache = MemoryCache(interval: Double(autoRequeryFrequency) / 4, keepTime: Double(autoRequeryFrequency), extendTtlOnHit: false)
+
             return
         }
+        else if type == .tth
+        {
+            // sensibility checks for user values for mode config
+            tthClusteringRadius = clamp(tthClusteringRadius, minValue: 10, maxValue: 100)
+            tthHopTime = clamp(tthHopTime, minValue: 0.0, maxValue: 60.0)
+            tthRequeryFrequency = clamp(tthRequeryFrequency, minValue: 60, maxValue: 3600)
+            tthDeviceTimeout = clamp(tthDeviceTimeout, minValue: 30, maxValue: 3600)
 
+            // setup cache(s) we need for this mode, leave the others as nil
+            tthDevices = MemoryCache(interval: Double(tthDeviceTimeout) / 4, keepTime: Double(tthDeviceTimeout), extendTtlOnHit: true)
+            tthCache = MemoryCache(interval: Double(tthRequeryFrequency) / 4, keepTime: Double(tthRequeryFrequency), extendTtlOnHit: false)
+
+            // attempt to verify koji url is actually valid
+            let koji = Koji()
+            if tthClusteringUsesKoji && !koji.hasValidUrl()
+            {
+                if !koji.hasValidUrl()
+                {
+                    tthClusteringUsesKoji = false
+                    Log.error(message: "[AutoInstanceController] Init() - Unable to utilize Koji for clustering as it is not a valid URL=\(koji.getUrl())")
+                }
+             }
+            
+            return
+        }
+        
         update()
 
         if !skipBootstrap {
@@ -259,14 +331,12 @@ class AutoInstanceController: InstanceControllerProto {
         stop()
     }
 
-    private func update() {
+    private func update()  {
         switch type {
         case .pokemon:
             try? initAutoPokemonCoords()
-            pokemonCache.set(id: self.name, value: 1)
         case .tth:
             try? initTthCoords()
-            tthCache.set(id: self.name, value: 1)
         case .quest:
             stopsLock.lock()
             self.allStops = []
@@ -311,26 +381,24 @@ class AutoInstanceController: InstanceControllerProto {
     func getTask(mysql: MySQL, uuid: String, username: String?, account: Account?, timestamp: UInt64) -> [String: Any] {
         switch type {
         case .pokemon:
-            let hit = pokemonCache.get(id: self.name) ?? 0
+            let hit = pokemonCache!.get(id: self.name) ?? 0
             if hit == 0 {
                 try? initAutoPokemonCoords()
-                pokemonCache.set(id: self.name, value: 1)
             }
 
             let (_, min, sec) = secondsToHoursMinutesSeconds()
             let curSecInHour = min*60 + sec
-            pokemonLock.lock()
+            autoPokemonLock.lock()
 
             // increment location
             let loc: Int = currentDevicesMaxLocation
 
-            let newLoc = determineNextPokemonLocation(curTime: curSecInHour, curLocation: loc)
-            firstRun = false
+            let newLoc = determineNextAutoPokemonLocation(curTime: curSecInHour, curLocation: loc)
 
             Log.debug(message:
-                "getTask() pokemon - Instance: \(name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(pokemonCoords.count / 2)")
+                "[AutoInstanceController] getTask() - Instance: \(name) - oldLoc=\(loc) & newLoc=\(newLoc)/\(pokemonCoords.count / 2)")
 
-            var currentCoord = AutoPokemonCoord(id: 1, coord: Coord(lat: 0.0, lon: 0.0), spawnSeconds: 0)
+            var currentCoord = AutoPokemonCoord(id: 1, coord: Coord(lat: defaultLatitude, lon: defaultLongitude), spawnSeconds: 0)
             if pokemonCoords.indices.contains(newLoc) {
                 currentDevicesMaxLocation = newLoc
                 currentCoord = pokemonCoords[newLoc]
@@ -343,7 +411,7 @@ class AutoInstanceController: InstanceControllerProto {
                 }
             }
 
-            pokemonLock.unlock()
+            autoPokemonLock.unlock()
 
             var task: [String: Any] = [
                 "action": "scan_pokemon", "lat": currentCoord.coord.lat, "lon": currentCoord.coord.lon,
@@ -360,26 +428,50 @@ class AutoInstanceController: InstanceControllerProto {
             // run until data length == 0, then output a message to tell user done
             // since we actually care about laptime, use that variable
             tthLock.lock()
+            
+            // update cache for active devices
+            tthDevices?.set(id: uuid, value: 1)
 
-            let hit = tthCache.get(id: self.name) ?? 0
-            if hit == 0 {
+            let hit = tthCache!.get(id: self.name) ?? 0
+            if hit == 0 && firstRun
+            {
+                // not run before, so must get some coords to start
+                // don't run as async as we will just grab unclustered coords on first run to get thing moving
                 try? initTthCoords()
-                tthCache.set(id: self.name, value: 1)
+            }
+            else if hit == 0
+            {
+                // run async.  intent is to fire off the clustering, but keep running on old coords until we get data back from koji
+                DispatchQueue.global(qos: .background).async {
+                    try? self.initTthCoords()
+                }
+                
+            }
+            
+            // test for behavior if hoptime is set
+            if tthHopTime > 0.0
+            {
+                let possibleHopsInRequeryFrequency = Int( Double((tthDevices?.keyCount())!) * Double(tthRequeryFrequency) / tthHopTime )
+                
+                if currentDevicesMaxLocation > possibleHopsInRequeryFrequency
+                {
+                    currentDevicesMaxLocation = -1
+                }
             }
 
             // increment location
-            let loc: Int = currentDevicesMaxLocation
+            let priorLoc: Int = currentDevicesMaxLocation
 
-            var newLoc = loc + 1
-            if newLoc >= tthCoords.count {
+            var newLoc = priorLoc + 1
+            if newLoc >= tthCoords.count || newLoc < 0 {
                 newLoc = 0
             }
 
-            Log.debug(message: "getTask() tth - oldLoc=\(loc) & newLoc=\(newLoc)/\(tthCoords.count)")
+            Log.debug(message: "[AutoInstanceController] getTask() - oldLoc=\(priorLoc) & newLoc=\(newLoc)/\(tthCoords.count) & rawCount=\(self.currentTthRawPointsCount)")
 
             currentDevicesMaxLocation = newLoc
 
-            var currentCoord = Coord(lat: 0.0, lon: 0.0)
+            var currentCoord = Coord(lat: defaultLatitude, lon: defaultLongitude)
             if tthCoords.indices.contains(newLoc) {
                 currentCoord = tthCoords[newLoc]
             } else {
@@ -399,6 +491,7 @@ class AutoInstanceController: InstanceControllerProto {
             ]
 
             if InstanceController.sendTaskForLureEncounter { task["lure_encounter"] = true }
+            
             return task
         case .quest:
             bootstrappLock.lock()
@@ -846,25 +939,82 @@ class AutoInstanceController: InstanceControllerProto {
                 return ["coord_count": cnt]
             }
         case .tth:
-            var change = tthCoords.count - lastCountUnknown
-            if change == tthCoords.count {
-                change = 0
+            var changeCluster = tthCoords.count - lastTthCountUnknown
+            if changeCluster == tthCoords.count {
+                changeCluster = 0
+            }
+            
+            var changeRaw = currentTthRawPointsCount - lastTthRawPointsCount 
+            if changeRaw == currentTthRawPointsCount {
+                changeRaw = 0
             }
 
+            var avgVisitTime:Double = 0.0
+            if tthClusterVisits != 0
+            {
+                avgVisitTime = Double(self.tthRequeryFrequency) / Double(tthClusterVisits)
+            }
+
+            let deviceCount = devicesOnInstance() 
+
             if formatted {
-                if change > 0 {
-                    return """
-                    <span title=\"Current count and change in count from last query\">
-                    Coord Count: \(self.tthCoords.count), Delta: +\(change)</span>
-                    """
-                } else {
-                    return """
-                    <span title=\"Current count and change in count from last query\">
-                    Coord Count: \(self.tthCoords.count), Delta: \(change)</span>
-                    """
+                if changeCluster > 0
+                {
+                    if changeRaw > 0
+                    {
+                        return """
+                        <span title=\"Current count and change in count from last query\">
+                        Using Koji: \(tthClusteringUsesKoji)</br>
+                        Count (clusters/raw): \(self.tthCoords.count) / \(self.currentTthRawPointsCount)</br> 
+                        Delta: +\(changeCluster) / +\(changeRaw)</br>
+                        Clustering Date (max cluster size / time): \(self.lastMaxClusterSize) / \(self.tthCluseringTime.rounded(decimals: 2))sec</br>
+                        Performance (clusters visited / devices / avg time): \(tthClusterVisits) / \(deviceCount) / \(avgVisitTime.rounded(decimals: 2))sec
+                        </span>
+                        """
+                    }
+                    else
+                    {
+                        return """
+                        <span title=\"Current count and change in count from last query\">
+                        Using Koji: \(tthClusteringUsesKoji)</br>
+                        Count (clusters/raw): \(self.tthCoords.count) / \(self.currentTthRawPointsCount)</br> 
+                        Delta: +\(changeCluster) / \(changeRaw)</br>
+                        Clustering Date (max cluster size / time): \(self.lastMaxClusterSize) / \(self.tthCluseringTime.rounded(decimals: 2))sec</br>
+                        Performance (clusters visited / devices / avg time): \(tthClusterVisits) / \(deviceCount) / \(avgVisitTime.rounded(decimals: 2))sec
+                        </span>
+                        """
+                    }
+                    
+                }
+                else
+                {
+                    if changeRaw > 0
+                    {
+                        return """
+                        <span title=\"Current count and change in count from last query\">
+                        Using Koji: \(tthClusteringUsesKoji)</br>
+                        Count (clusters/raw): \(self.tthCoords.count) / \(self.currentTthRawPointsCount)</br> 
+                        Delta: \(changeCluster) / +\(changeRaw)</br>
+                        Clustering Date (max cluster size / time): \(self.lastMaxClusterSize) / \(self.tthCluseringTime.rounded(decimals: 2))sec</br>
+                        Performance (clusters visited / devices / avg time): \(tthClusterVisits) / \(deviceCount) / \(avgVisitTime.rounded(decimals: 2))sec
+                        </span>
+                        """
+                    }
+                    else
+                    {
+                        return """
+                        <span title=\"Current count and change in count from last query\">
+                        Using Koji: \(tthClusteringUsesKoji)</br>
+                        Count (clusters/raw): \(self.tthCoords.count) / \(self.currentTthRawPointsCount)</br> 
+                        Delta: \(changeCluster) / \(changeRaw)</br>
+                        Clustering Date (max cluster size / time): \(self.lastMaxClusterSize) / \(self.tthCluseringTime.rounded(decimals: 2))sec</br>
+                        Performance (clusters visited / devices / avg time): \(tthClusterVisits) / \(deviceCount) / \(avgVisitTime.rounded(decimals: 2))sec
+                        </span>
+                        """
+                    }
                 }
             } else {
-                return ["coord_count": self.tthCoords.count, "Delta": change]
+                return ["coord_count": self.tthCoords.count, "Delta": changeCluster]
             }
         }
     }
@@ -915,13 +1065,13 @@ class AutoInstanceController: InstanceControllerProto {
     }
 
     func initAutoPokemonCoords() throws {
-        Log.debug(message: "initAutoPokemonCoords() - Starting")
+        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords() - Starting")
         guard let mysql = DBController.global.mysql else {
-            Log.error(message: "[AutoInstanceController] initAutoPokemonCoords() Failed to connect to database.")
+            Log.error(message: "[AutoInstanceController] initAutoPokemonCoords() - Failed to connect to database.")
             return
         }
 
-        pokemonLock.lock()
+        autoPokemonLock.lock()
         pokemonCoords.removeAll(keepingCapacity: true)
 
         var tmpCoords: [AutoPokemonCoord] = [AutoPokemonCoord]()
@@ -940,11 +1090,19 @@ class AutoInstanceController: InstanceControllerProto {
         }
 
         // assemble the sql
-        var sql = "select id, despawn_sec, lat, lon from spawnpoint where "
-        sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
+        var sql = "select id, despawn_sec, lat, lon, spawn_info from spawnpoint where "
+        sql.append(" (lat>" + String(minLat) + " AND lon >" + String(minLon) + ") ")
         sql.append(" AND ")
-        sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
+        sql.append(" (lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ") ")
         sql.append(" AND despawn_sec is not null")
+
+        if autoUseLastSeenTime > 0
+        {
+            let time = UInt64(Date().timeIntervalSince1970) - UInt64(autoUseLastSeenTime)
+
+            sql.append(" AND last_seen > \(time) ")
+        }
+
         sql.append(" order by despawn_sec")
 
         Log.debug(message: "\(sql)")
@@ -953,7 +1111,7 @@ class AutoInstanceController: InstanceControllerProto {
         _ = mysqlStmt.prepare(statement: sql)
 
         guard mysqlStmt.execute() else {
-            Log.error(message: "[AutoInstanceController] initAutoPokemonCoords() Failed to execute query. " +
+            Log.error(message: "[AutoInstanceController] initAutoPokemonCoords() - Failed to execute query. " +
                 "(\(mysqlStmt.errorMessage())")
             throw DBController.DBError()
         }
@@ -965,10 +1123,21 @@ class AutoInstanceController: InstanceControllerProto {
             let despawnSeconds = result[1] as! UInt16
             let lat = result[2] as! Double
             let lon = result[3] as! Double
+            let spawnInfo = result[4] as! UInt32
 
             var spawnSeconds: Int = Int(despawnSeconds)
-
-            spawnSeconds -= 1800 // add 30min so when spawn should show, rdm not track 60min spawns
+            
+            // determine if 60 or 30min spawns, will default to 30min spawns
+            // first 4 bits of spawnInfo are quarter hours of if mon seen there, all 4, it is 60.  less than 4, it is 30.
+            let testValue: UInt32 = 15
+            if (spawnInfo & testValue == testValue)
+            {
+                spawnSeconds -= 3600
+            }
+            else
+            {
+                spawnSeconds -= 1800
+            }
 
             if spawnSeconds < 0 {
                 spawnSeconds += 3600
@@ -984,9 +1153,9 @@ class AutoInstanceController: InstanceControllerProto {
             count += 1
         }
 
-        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords - " +
+        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords() - " +
             "got \(count) spawnpoints in min/max rectangle")
-        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords - " +
+        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords() - " +
             "got \(tmpCoords.count) spawnpoints in geofence")
 
         // sort the array, so 0-3600 sec in order
@@ -1006,17 +1175,24 @@ class AutoInstanceController: InstanceControllerProto {
             currentDevicesMaxLocation = 0
         }
 
-        pokemonLock.unlock()
+        firstRun = false
+        
+        pokemonCache!.set(id: self.name, value: 1)
+
+        autoPokemonLock.unlock()
+        
+        Log.debug(message: "[AutoInstanceController] initAutoPokemonCoords() - Ended")
     }
 
     func initTthCoords() throws {
-        Log.debug(message: "initTthCoords() - Starting")
+        Log.debug(message: "[AutoInstanceController] initTthCoords() - Starting")
         guard let mysql = DBController.global.mysql else {
             Log.error(message: "[AutoInstanceController] initTthCoords() - Failed to connect to database.")
             return
         }
 
-        lastCountUnknown = tthCoords.count
+        lastTthCountUnknown = tthCoords.count
+        lastTthRawPointsCount = currentTthRawPointsCount
 
         tthLock.lock()
         tthCoords.removeAll(keepingCapacity: true)
@@ -1041,20 +1217,32 @@ class AutoInstanceController: InstanceControllerProto {
         sql.append("(lat>" + String(minLat) + " AND lon >" + String(minLon) + ")")
         sql.append(" AND ")
         sql.append("(lat<" + String(maxLat) + " AND lon <" + String(maxLon) + ")")
-        sql.append(" AND despawn_sec is null limit 5000")
+        sql.append(" AND despawn_sec is null")
+
+        // if koji not available, order the data by last seen adding a random amount to make devices bounce around a bit
+        // we will keep working over set of found points.  if find one, setup will just expand
+        if firstRun && !tthClusteringUsesKoji
+        {
+            sql.append(" ORDER BY RAND() ")
+        }
+        else if !tthClusteringUsesKoji
+        {
+            sql.append(" ORDER BY (last_seen + RAND() * 1000) DESC ")
+        }
 
         let mysqlStmt = MySQLStmt(mysql)
         _ = mysqlStmt.prepare(statement: sql)
 
         guard mysqlStmt.execute() else {
             Log.error(message:
-                "[AutoInstanceController] initTthCoords - Failed to execute query. (\(mysqlStmt.errorMessage())")
+                "[AutoInstanceController] initTthCoords() - Failed to execute query. (\(mysqlStmt.errorMessage())")
             throw DBController.DBError()
         }
 
         var count: Int = 0
         let results = mysqlStmt.results()
-        while let result = results.next() {
+        while let result = results.next()
+        {
             let lat = result[0] as! Double
             let lon = result[1] as! Double
 
@@ -1064,29 +1252,144 @@ class AutoInstanceController: InstanceControllerProto {
 
             count += 1
         }
+        currentTthRawPointsCount = tmpCoords.count
+        
         Log.debug(message:
-            "[AutoInstanceController] initTthCoords - got \(count) points in min/max rectangle with null tth")
+            "[AutoInstanceController] initTthCoords() - got \(count) points in min/max rectangle with null tth")
         Log.debug(message:
-            "[AutoInstanceController] initTthCoords - got \(tmpCoords.count) points in geofence with null tth")
-
-        if count == 0 {
-            Log.debug(message:
-                "[AutoInstanceController] initTthCoords - got \(count) points in min/max rectangle with null tth")
-        }
+            "[AutoInstanceController] initTthCoords() - got \(tmpCoords.count) points in geofence with null tth")
 
         if tmpCoords.count == 0 {
             Log.debug(message:
-                "[AutoInstanceController] initTthCoords - got \(tmpCoords.count) points in geofence with null tth")
+                "[AutoInstanceController] initTthCoords - got ZERO points in min/max rectangle with null tth, you should switch to another mode")
         }
 
-        // sort the array, so 0-3600 sec in order
-        tthCoords = tmpCoords
+        Log.debug(message:"[AutoInstanceController] initTthCoords() - UsingKoji = \(tthClusteringUsesKoji) &  firstRun=\(firstRun)")
 
-        // locationLock.lock()
-        currentDevicesMaxLocation = 0
-        // locationLock.unlock()
+        // determine if end user is utilizing koji, if so cluster some shit
+        // for the first run, we will just do all data without any clusters to get things moving
+        if tthClusteringUsesKoji
+        {
+            Log.debug(message:"[AutoInstanceController] initTthCoords() - Using Koji for clustering")
+            tthCoords = getClusteredCoords(dataPoints: tmpCoords)
+        }
+        else
+        {
+            Log.debug(message:"[AutoInstanceController] initTthCoords() - not using Koji for clustering")
+            
+            // setup and do some poor boy clustering
+            var precision:UInt16 = 7
 
+            if tmpCoords.count < 1000
+            {
+                // drop down in precision, likely to be on nearly all clusters being singular points anyways
+                precision = 8
+            }
+
+            lastMaxClusterSize = Int(precision)
+            
+            tthCoords = poorBoyClusteringUsingGeohash(dataPoints: tmpCoords, geohashPrecision: precision)
+        }
+
+        tthClusterVisits = currentDevicesMaxLocation
+        currentDevicesMaxLocation = -1
+
+        firstRun = false
+        
+        tthCache!.set(id: self.name, value: 1)
+        
         tthLock.unlock()
+        
+        Log.debug(message: "[AutoInstanceController] initTthCoords() - Ended")
+    }
+    
+    func devicesOnInstance() -> UInt16
+    {
+        var cnt = tthDevices?.keyCount() ?? 1
+        cnt  = min(1,cnt)  // really shouldn't be capable of happening
+        
+        return UInt16(cnt)
+    }
+
+    func getClusteredCoords(dataPoints: [Coord]) -> [Coord]
+    {
+        Log.debug(message:"[AutoInstanceController] getClusteredCoords() - starting function")
+
+        // get the clusters from koji
+        // 1. run with fast=true for first run, so that we can get moving, which causes clusters to be random order
+        // 2. on subsequent runs, we will use fast=false, so we get clusters back sorted by largest.  this will cause the
+        //    workers to start with high spawnpoint count clusters and work towards smaller ones.
+        if let kojiData = getClusteredCoordsFromKoji(dataPoints: dataPoints, radius: tthClusteringRadius,
+                                             minPoints: UInt16(1), benchmarkMode: false, fast: firstRun)
+        {
+            lastMaxClusterSize = kojiData.stats.bestClusterPointCount
+            tthCluseringTime = kojiData.stats.clusterTime
+
+            return kojiData.data!
+        }
+        else 
+        {                
+            // something went wrong with koji, fallback to normal
+            Log.error(message: "[AutoInstanceController] getClusteredCoords() - Unable to get data from Koji, falling back to geohash clustering")
+            tthClusteringUsesKoji = false
+            firstRun = true  // reset flag so we know to do a rand() on data to get a shotgun pattern
+
+            lastMaxClusterSize = 0
+            tthCluseringTime = 0
+
+            return poorBoyClusteringUsingGeohash(dataPoints: dataPoints, geohashPrecision: 8)
+        }
+    }
+
+    func getClusteredCoordsFromKoji(dataPoints: [Coord], radius: UInt16, minPoints: UInt16, benchmarkMode: Bool, fast: Bool) -> Koji.returnedDataOfSingleArray?
+    {
+        // function to get the data from koji
+        // may get nil back from Koji function, don't handle here but pass on to calling funciton
+        Log.debug(message:"[AutoInstanceController] clusteredCoords() - started function with radius=\(radius) & minPoints=\(minPoints) & benchmarkMode=\(benchmarkMode) & [Coord].count=\(dataPoints.count)")
+
+        let koji = Koji()
+        let returnedData = koji.getClusterTthFromKoji(dataPoints: dataPoints,
+                                                radius: Int(tthClusteringRadius), minPoints: Int(minPoints), benchmarkMode: benchmarkMode,
+                                                fast: fast, sortBy: Koji.sorting.ClusterCount.asText(),
+                                                returnType: Koji.returnType.SingleArray.asText(), onlyUnique: true)!
+
+        return returnedData
+    }
+    
+    func poorBoyClusteringUsingGeohash(dataPoints: [Coord], geohashPrecision: UInt16 = 8) -> [Coord]
+    {
+        let start = Date()
+
+        var geohashSet = Set<String>()
+        
+        // loop through points and convert to geohash
+        // insert into a swift set, so that there are no duplicates
+        for point in dataPoints
+        {
+            let hashedCoord = Geohash.encode(latitude: point.lat, longitude: point.lon, length: Int(geohashPrecision))
+            
+            geohashSet.insert(hashedCoord)
+        }
+        
+        // convert back to lat/lon for our use
+        var returnPoints = [Coord]()
+        
+        for hashedPoint in geohashSet
+        {
+            if let (lat, lon) = Geohash.decode(hash: hashedPoint)
+            {
+                let latitudeMidpoint = (lat.min + lat.max) / 2
+                let longitudeMidpoint = (lon.min + lon.max) / 2
+                
+                returnPoints.append( Coord(lat: latitudeMidpoint, lon: longitudeMidpoint) )
+            }
+        }
+
+        let diff = -1 * start.timeIntervalSinceNow
+        tthCluseringTime = diff
+        Log.debug(message: "[AutoInstanceController] PoorBoyClustering() - process time = \(diff)")
+        
+        return returnPoints
     }
 
     func secondsFromTopOfHour(seconds: UInt64 ) -> UInt64 {
@@ -1101,19 +1404,19 @@ class AutoInstanceController: InstanceControllerProto {
     }
 
     func offsetsForSpawnTimer(time: UInt16) -> (UInt16, UInt16) {
-        let maxTime: UInt16 = time + 1800 - minTimer
-        let minTime: UInt16 = time + timeAfterSpawn
+        let maxTime: UInt16 = time + 1800 - UInt16(autoMinSpawnTime)
+        let minTime: UInt16 = time + UInt16(autoBufferTime)
 
         return (minTime, maxTime)
     }
 
-    func determineNextPokemonLocation(curTime: UInt64, curLocation: Int) -> Int {
+    func determineNextAutoPokemonLocation(curTime: UInt64, curLocation: Int) -> Int {
         let cntArray = pokemonCoords.count
         let cntCoords = pokemonCoords.count / 2
 
         if cntArray <= 0 {
             try? initAutoPokemonCoords()
-            pokemonCache.set(id: self.name, value: 1)
+            
             return 0
         }
 
@@ -1134,7 +1437,7 @@ class AutoInstanceController: InstanceControllerProto {
             loc = 0
         }
 
-        pokemonLock.lock()
+        autoPokemonLock.lock()
         if !pokemonCoords.indices.contains(loc) {
             if pokemonCoords.indices.contains(0) {
                 loc = 0
@@ -1144,7 +1447,7 @@ class AutoInstanceController: InstanceControllerProto {
             }
         }
         var nextCoord = pokemonCoords[loc]
-        pokemonLock.unlock()
+        autoPokemonLock.unlock()
 
         var spawnSeconds: UInt16 = nextCoord.spawnSeconds
 
@@ -1168,11 +1471,11 @@ class AutoInstanceController: InstanceControllerProto {
                 "moving standard 1 forward")
 
             // test if we are getting too close to the mintime
-            if  Double(curTime) - Double(minTime) < Double(bufferTimeDistance) {
+            if  Double(curTime) - Double(minTime) < Double(autoBufferTime) {
                 Log.debug(message:
                     "[AutoInstanceController] determineNextPokemonLocation() a2 - " +
                     "sleeping 10sec as too close to minTime, in normal time")
-                Threading.sleep(seconds: Double(sleepTimeAutoPokemon))
+                Threading.sleep(seconds: Double(autoSleepInterval))
             }
         } else if curTime < minTime {
             // spawn is past time to visit, need to find a good one to jump to
@@ -1226,7 +1529,6 @@ class AutoInstanceController: InstanceControllerProto {
             Log.debug(message: "[AutoInstanceController] determineNextPokemonLocation() c1 - sleeping 20sec")
             Threading.sleep(seconds: 20)
 
-            pauseAutoPokemon = true
             loc -= 1
         } else if curTime > maxTime {
             // spawn is past time to visit, need to find a good one to jump to
