@@ -528,7 +528,7 @@ class AutoInstanceController: InstanceControllerProto {
                             "min_level": minLevel, "max_level": maxLevel]
                 } else {
                     bootstrappLock.unlock()
-                    return [String: Any]()
+                    return [:]
                 }
 
             } else {
@@ -618,7 +618,7 @@ class AutoInstanceController: InstanceControllerProto {
                     Log.error(
                         message: "[AutoInstanceController] [\(name)] [\(uuid)] Failed to get last location."
                     )
-                    return [String: Any]()
+                    return [:]
                 }
 
                 if lastCoord != nil {
@@ -635,7 +635,7 @@ class AutoInstanceController: InstanceControllerProto {
                     let todayStopsC = todayStops
                     stopsLock.unlock()
                     if todayStopsC!.isEmpty {
-                        return [String: Any]()
+                        return [:]
                     }
 
                     for stop in todayStopsC! {
@@ -737,7 +737,7 @@ class AutoInstanceController: InstanceControllerProto {
                     stopsLock.lock()
                     todayStops?.append(pokestop)
                     stopsLock.unlock()
-                    return [String: Any]()
+                    return [:]
                 }
 
                 if delay >= delayLogout && account != nil {
@@ -795,7 +795,7 @@ class AutoInstanceController: InstanceControllerProto {
                     stopsLock.lock()
                     todayStops?.append(pokestop)
                     stopsLock.unlock()
-                    return [String: Any]()
+                    return [:]
                 }
 
                 stopsLock.lock()
