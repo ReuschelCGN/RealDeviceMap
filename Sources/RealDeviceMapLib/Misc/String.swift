@@ -8,6 +8,7 @@
 import Foundation
 import PerfectLib
 import COpenSSL
+import Regex
 
 public extension String {
 
@@ -115,6 +116,23 @@ public extension String {
         }
     }
 
+    var isValidURL: Bool
+    {
+        // wtf, this doesn't work in linux but does in mac
+        /*
+        let detector = try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        if let match = detector.firstMatch(in: self, options: [], range: NSRange(location: 0, length: self.utf16.count)) {
+            // it is a link, if the match covers the whole string
+            return match.range.length == self.utf16.count
+        } else {
+            return false
+        }
+        */
+
+        // quick and dirty url check
+        let regex = "(https?)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$]"
+        return self =~ regex
+    }
 }
 
 extension String.UTF8View {
