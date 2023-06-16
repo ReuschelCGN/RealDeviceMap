@@ -609,7 +609,7 @@ public class Account: WebHookEvent {
                 \(spinSQL)
                 \(cooldownSQL)
                 \(lockoutSQL)
-            ORDER by rand()
+            ORDER BY rand()
             LIMIT 1
         """
 
