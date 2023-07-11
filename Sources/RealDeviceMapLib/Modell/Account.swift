@@ -581,7 +581,7 @@ public class Account: WebHookEvent {
             """
         } else {
             orderBySql = """
-            ORDER BY last_used_timestamp \(Account.lastRecentlyUsed ? "DESC" : "ASC")
+            ORDER BY \(Account.lastRecentlyUsed ? "last_used_timestamp DESC" : "rand()")
             """
         }
 
